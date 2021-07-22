@@ -7,15 +7,15 @@ To install, run
 
 Build
 
-    $ go install github.com/zyong/miniproxy-go/cmd/gsproxy 
+    $ go install github.com/zyong/miniproxy-go/miniproxy 
 
-You will now find a `gsproxy` binary in your `$GOPATH/bin` directory.
+You will now find a `miniproxy` binary in your `$GOPATH/bin` directory.
 
 Usage
 -----
 
 Start proxy
 
-    $ gsproxy 
+    $ miniproxy 
 
-Run `gsproxy -help` for more information.
+Run `miniproxy -help` for more information.
