@@ -1,4 +1,4 @@
-package gsproxy
+package miniproxy
 
 import (
 	"bytes"
