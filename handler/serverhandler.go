@@ -15,7 +15,7 @@ type request struct {
 	remoteAddr    string
 }
 
-type httpServer struct {
+type serverHandler struct {
 	*gnet.EventServer
 }
 
@@ -24,13 +24,13 @@ var (
 	errMsgBytes = []byte(errMsg)
 )
 
-func (hs *httpServer) OnInitComplete(srv gnet.Server) (action gnet.Action) {
+func (sh *serverHandler) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 	log.Printf("HTTP server is listening on %s (multi-cores: %t, loops: %d)\n",
 		srv.Addr.String(), srv.Multicore, srv.NumEventLoop)
 	return
 }
 
-func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
+func (sh *serverHandler) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
 	if c.Context() != nil {
 		// bad thing happened
 		out = errMsgBytes
