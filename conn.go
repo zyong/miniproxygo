@@ -29,6 +29,7 @@ func NewConn(s *Server, rwc net.Conn) *conn {
 // serve tunnel the client connection to remote host
 // if conn doesn't close，we should loop read
 func (c *conn) serve() {
+	defer c.localConn.Close()
 	// 读取消息体
 	err := c.readMessage()
 	if err != nil {
@@ -55,6 +56,7 @@ func (c *conn) serve() {
 		logger.Errorf("connect error %v\n", err)
 		return
 	}
+	defer remoteConn.Close()
 
 	if c.header.isHttps() {
 		// if https, should sent 200 to client
@@ -85,13 +87,17 @@ func (c *conn) serve() {
  */
 func (c *conn) readMessage() error {
 	reader := bufio.NewReader(c.localConn)
-
+	// 读取完成header
+	// readHeader(reader)
 	tpReader := textproto.NewReader(reader)
 	requestLine, err := tpReader.ReadLine()
 	if err != nil {
 		return err
 	}
-	c.header.ResolveHeader(requestLine)
+	err = c.header.ResolveHeader(requestLine)
+	if err != nil {
+		return err
+	}
 	header, _ := tpReader.ReadMIMEHeader()
 	c.header.SetHeader(header)
 
@@ -141,8 +147,6 @@ func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
 		}
 	}()
 	wg.Wait()
-	defer remoteConn.Close()
-	defer localConn.Close()
 }
 
 // tunnel http message between client and server
@@ -163,7 +167,7 @@ func (b *BadRequestError) Error() string {
 	return b.what
 }
 
-func readHeader(reader bufio.Reader) {
+func readHeader(reader *bufio.Reader) {
 	var buf bytes.Buffer
 	for {
 		b, err := reader.ReadByte()
@@ -176,6 +180,7 @@ func readHeader(reader bufio.Reader) {
 		}
 		buf.WriteByte(b)
 	}
+	logger.Infof("%v\n", buf.String())
 	format(buf)
 }
 

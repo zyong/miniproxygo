@@ -71,6 +71,9 @@ func (h *header) ResolveHeader(line string) error {
 
 		} else {
 			logger.Errorf("error line %s\n", line)
+			return &BadRequestError{
+				what: "bad request",
+			}
 		}
 	}
 
