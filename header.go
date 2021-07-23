@@ -48,11 +48,29 @@ func (h *header) ResolveHeader(line string) error {
 	s2 := strings.Index(line[s1+1:], " ")
 
 	if h.method == "" {
-		h.method = line[:s1]
-		if s2 != -1 {
-			h.uri = line[s1+1 : s1+s2+1]
+		if s1 != -1 {
+			h.method = line[:s1]
+			switch strings.ToLower(h.method) {
+			case "get":
+			case "post":
+			case "header":
+			case "connect":
+			case "patch":
+			case "options":
+				if s2 != -1 {
+					h.uri = line[s1+1 : s1+s2+1]
+				} else {
+					h.uri = line[s1+1:]
+				}
+			default:
+				logger.Errorf("error line %s\n", line)
+				return &BadRequestError{
+					what: "bad request",
+				}
+			}
+
 		} else {
-			h.uri = line[s1+1:]
+			logger.Errorf("error line %s\n", line)
 		}
 	}
 

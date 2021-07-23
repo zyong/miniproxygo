@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/textproto"
+	"sync"
 )
 
 var requestLine string
@@ -29,7 +30,11 @@ func NewConn(s *Server, rwc net.Conn) *conn {
 // if conn doesn't close，we should loop read
 func (c *conn) serve() {
 	// 读取消息体
-	c.readMessage()
+	err := c.readMessage()
+	if err != nil {
+		logger.Errorf("read message err %v\n", err)
+		return
+	}
 
 	// rebuild http request header
 	var rawReqHeader bytes.Buffer
@@ -80,6 +85,7 @@ func (c *conn) serve() {
  */
 func (c *conn) readMessage() error {
 	reader := bufio.NewReader(c.localConn)
+
 	tpReader := textproto.NewReader(reader)
 	requestLine, err := tpReader.ReadLine()
 	if err != nil {
@@ -96,44 +102,47 @@ func (c *conn) readMessage() error {
 }
 
 func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		reader := bufio.NewReader(remoteConn)
+		writer := bufio.NewWriter(localConn)
 		for {
-			reader := bufio.NewReader(remoteConn)
-			writer := bufio.NewWriter(localConn)
 			if reader.Size() > 0 {
 				_, err := io.Copy(writer, reader)
 				if err != nil {
 					logger.Errorf("err %v\n", err)
+					wg.Done()
+					return
 				}
+			} else {
+				wg.Done()
+				return
 			}
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		reader := bufio.NewReader(localConn)
+		writer := bufio.NewWriter(remoteConn)
 		for {
-			reader := bufio.NewReader(localConn)
-			writer := bufio.NewWriter(remoteConn)
 			if reader.Size() > 0 {
 				_, err := io.Copy(writer, reader)
 				if err != nil {
 					logger.Errorf("err %v\n", err)
+					wg.Done()
+					return
 				}
+			} else {
+				wg.Done()
+				return
 			}
 		}
 	}()
-
-	// reader := bufio.NewReader(remoteConn)
-	// var buf []byte = make([]byte, 4096)
-	// for {
-	// 	_, err := reader.Read(buf)
-	// 	if err != nil {
-	// 		if err == io.EOF {
-	// 			break
-	// 		}
-	// 	}
-	// 	localConn.Write(buf)
-	// 	logger.Info(buf)
-	// }
+	wg.Wait()
+	defer remoteConn.Close()
+	defer localConn.Close()
 }
 
 // tunnel http message between client and server
@@ -152,4 +161,38 @@ type BadRequestError struct {
 
 func (b *BadRequestError) Error() string {
 	return b.what
+}
+
+func readHeader(reader bufio.Reader) {
+	var buf bytes.Buffer
+	for {
+		b, err := reader.ReadByte()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			logger.Errorf("reader read byte err %v\n", err)
+			break
+		}
+		buf.WriteByte(b)
+	}
+	format(buf)
+}
+
+// 一行8个
+func format(b bytes.Buffer) {
+	n := b.Len()
+	lines := n / 8
+	bs := b.Bytes()
+	for i := 0; i < lines; i++ {
+		for j := 0; j < 8; j++ {
+			if i*8+j >= b.Len() {
+				goto Loop
+			}
+			fmt.Printf("%d ", bs[i*8+j])
+		}
+		fmt.Println()
+	}
+Loop:
+	return
 }
