@@ -1,3 +1,0 @@
-package: github.com/zyong/miniproxy-go
-import:
-- package: github.com/op/go-logging
