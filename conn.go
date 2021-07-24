@@ -49,7 +49,7 @@ func (c *conn) serve() {
 		}
 	}
 	rawReqHeader.WriteString("\r\n")
-	logger.Debugf("%v\n", rawReqHeader.String())
+	logger.Debugf("raw req header %v\n", rawReqHeader.String())
 
 	// 解析tunnel
 	logger.Info("connecting to " + remote)
@@ -90,7 +90,8 @@ func (c *conn) readMessage() error {
 	// 读取完成header
 	// readHeader(reader)
 	tpReader := textproto.NewReader(reader)
-	requestLine, err := tpReader.ReadLine()
+	var err error
+	requestLine, err = tpReader.ReadLine()
 	if err != nil {
 		return err
 	}
@@ -111,29 +112,47 @@ func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		reader := bufio.NewReader(remoteConn)
-		writer := bufio.NewWriter(localConn)
+		// reader := bufio.NewReader(remoteConn)
+		// writer := bufio.NewWriter(localConn)
 		for {
-			_, err := io.Copy(writer, reader)
-			if err != nil {
-				wg.Done()
-				return
+			remoteConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			localConn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			bs, err := c.read(remoteConn)
+			if err != nil || err == io.EOF {
+				goto noloop
+			}
+			if len(bs) > 0 {
+				_, err = localConn.Write(bs)
+				logger.Debugf("write local conn %v\n", string(bs))
+			}
+			if err != nil || err == io.EOF {
+				goto noloop
 			}
 		}
+	noloop:
+		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		reader := bufio.NewReader(localConn)
-		writer := bufio.NewWriter(remoteConn)
 		for {
-			_, err := io.Copy(writer, reader)
-			if err != nil {
-				wg.Done()
-				return
+			localConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			remoteConn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			bs, err := c.read(localConn)
+			if err != nil || err == io.EOF {
+				goto noloop
+			}
+			if len(bs) > 0 {
+				_, err = remoteConn.Write(bs)
+				logger.Debugf("write remote conn %v\n", string(bs))
 			}
 
+			if err != nil || err == io.EOF {
+				goto noloop
+			}
 		}
+	noloop:
+		wg.Done()
 	}()
 	wg.Wait()
 }
@@ -154,6 +173,16 @@ type BadRequestError struct {
 
 func (b *BadRequestError) Error() string {
 	return b.what
+}
+
+func (c *conn) read(conn net.Conn) (buf []byte, err error) {
+	bs := make([]byte, 50)
+	nr, err := conn.Read(bs)
+	if err != nil {
+		return
+	}
+	buf = append(buf, bs[:nr]...)
+	return
 }
 
 func readHeader(reader *bufio.Reader) {

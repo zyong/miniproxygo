@@ -13,6 +13,10 @@ func init() {
 	b := logging.NewLogBackend(os.Stderr, "", 0)
 	bFormatter := logging.NewBackendFormatter(b, format)
 	bLeveled := logging.AddModuleLevel(bFormatter)
-	bLeveled.SetLevel(logging.INFO, "")
+	if debug {
+		bLeveled.SetLevel(logging.DEBUG, "")
+	} else {
+		bLeveled.SetLevel(logging.INFO, "")
+	}
 	logging.SetBackend(bLeveled)
 }

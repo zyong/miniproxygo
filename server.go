@@ -6,6 +6,7 @@ import (
 	"github.com/op/go-logging"
 )
 
+var debug bool = false
 var logger *logging.Logger = logging.MustGetLogger("Server")
 
 type Server struct {
