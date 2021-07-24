@@ -3,6 +3,7 @@ package miniproxy
 import (
 	"net"
 
+	reuseport "github.com/kavu/go_reuseport"
 	"github.com/op/go-logging"
 )
 
@@ -22,7 +23,7 @@ func NewServer(Addr string) *Server {
 // Start a proxy server
 func (s *Server) Start() {
 	var err error
-	s.listener, err = net.Listen("tcp", s.addr)
+	s.listener, err = reuseport.Listen("tcp", s.addr)
 
 	if err != nil {
 		logger.Fatal(err)
@@ -36,12 +37,12 @@ func (s *Server) Start() {
 			logger.Error(err)
 			continue
 		}
-		s.handlerConn(conn)
+		go s.handlerConn(&conn)
 	}
 }
 
 // newConn create a conn to serve client request
-func (s *Server) handlerConn(rwc net.Conn) {
+func (s *Server) handlerConn(rwc *net.Conn) {
 	conn := NewConn(s, rwc)
-	go conn.serve()
+	conn.serve()
 }

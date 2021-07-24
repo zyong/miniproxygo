@@ -14,12 +14,12 @@ import (
 var requestLine string
 
 type conn struct {
-	localConn net.Conn
+	localConn *net.Conn
 	server    *Server
 	header    *header
 }
 
-func NewConn(s *Server, rwc net.Conn) *conn {
+func NewConn(s *Server, rwc *net.Conn) *conn {
 	return &conn{
 		server:    s,
 		localConn: rwc,
@@ -30,7 +30,7 @@ func NewConn(s *Server, rwc net.Conn) *conn {
 // serve tunnel the client connection to remote host
 // if conn doesn't close，we should loop read
 func (c *conn) serve() {
-	defer c.localConn.Close()
+	defer (*c.localConn).Close()
 	// 读取消息体
 	err := c.readMessage()
 	if err != nil {
@@ -41,6 +41,8 @@ func (c *conn) serve() {
 	// rebuild http request header
 	var rawReqHeader bytes.Buffer
 	remote, _ := c.header.Remote()
+	logger.Infof("request %s \n", remote)
+
 	// GET http://www.baidu.com/
 	rawReqHeader.WriteString(requestLine + "\r\n")
 	for k, vs := range c.header.header {
@@ -62,7 +64,7 @@ func (c *conn) serve() {
 
 	if c.header.isHttps() {
 		// if https, should sent 200 to client
-		_, err = c.localConn.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+		_, err = (*c.localConn).Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 		if err != nil {
 			logger.Error(err)
 			return
@@ -77,16 +79,16 @@ func (c *conn) serve() {
 	}
 
 	// build bidirectional-streams
-	logger.Info("begin tunnel", c.localConn.RemoteAddr(), "<->", remote)
-	c.Relay(remoteConn, c.localConn)
-	logger.Info("stop tunnel", c.localConn.RemoteAddr(), "<->", remote)
+	logger.Info("begin tunnel", (*c.localConn).RemoteAddr(), "<->", remote)
+	c.Relay(&remoteConn, c.localConn)
+	logger.Info("stop tunnel", (*c.localConn).RemoteAddr(), "<->", remote)
 }
 
 /**
  * 读取消息可能分几次读取，一次获取到的消息可能不完整
  */
 func (c *conn) readMessage() error {
-	reader := bufio.NewReader(c.localConn)
+	reader := bufio.NewReader(*c.localConn)
 	// 读取完成header
 	// readHeader(reader)
 	tpReader := textproto.NewReader(reader)
@@ -108,21 +110,24 @@ func (c *conn) readMessage() error {
 	return nil
 }
 
-func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
+func (c *conn) Relay(remoteConn *net.Conn, localConn *net.Conn) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		// reader := bufio.NewReader(remoteConn)
 		// writer := bufio.NewWriter(localConn)
+		// remoteConn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		// localConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		for {
-			remoteConn.SetReadDeadline(time.Now().Add(2 * time.Second))
-			localConn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			logger.Debug("loop read remote write local\n")
 			bs, err := c.read(remoteConn)
 			if err != nil || err == io.EOF {
 				goto noloop
 			}
+			logger.Debugf("loop read read %s byte\n", string(bs))
+
 			if len(bs) > 0 {
-				_, err = localConn.Write(bs)
+				_, err = (*localConn).Write(bs)
 				logger.Debugf("write local conn %v\n", string(bs))
 			}
 			if err != nil || err == io.EOF {
@@ -135,15 +140,18 @@ func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
 
 	wg.Add(1)
 	go func() {
+		// (*localConn).SetReadDeadline(time.Now().Add(10 * time.Second))
+		// (*remoteConn).SetWriteDeadline(time.Now().Add(10 * time.Second))
 		for {
-			localConn.SetReadDeadline(time.Now().Add(2 * time.Second))
-			remoteConn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			logger.Debug("loop write remote read local\n")
 			bs, err := c.read(localConn)
 			if err != nil || err == io.EOF {
 				goto noloop
 			}
+			logger.Debugf("loop read local %s byte\n", string(bs))
+
 			if len(bs) > 0 {
-				_, err = remoteConn.Write(bs)
+				_, err = (*remoteConn).Write(bs)
 				logger.Debugf("write remote conn %v\n", string(bs))
 			}
 
@@ -159,7 +167,7 @@ func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
 
 // tunnel http message between client and server
 func (c *conn) connect(remote string) (remoteConn net.Conn, err error) {
-	remoteConn, err = net.DialTimeout("tcp", remote, 2*time.Second)
+	remoteConn, err = net.DialTimeout("tcp", remote, 5*time.Second)
 	if err != nil {
 		logger.Error(err)
 		return
@@ -175,9 +183,9 @@ func (b *BadRequestError) Error() string {
 	return b.what
 }
 
-func (c *conn) read(conn net.Conn) (buf []byte, err error) {
+func (c *conn) read(conn *net.Conn) (buf []byte, err error) {
 	bs := make([]byte, 50)
-	nr, err := conn.Read(bs)
+	nr, err := (*conn).Read(bs)
 	if err != nil {
 		return
 	}
