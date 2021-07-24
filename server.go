@@ -22,6 +22,7 @@ func NewServer(Addr string) *Server {
 func (s *Server) Start() {
 	var err error
 	s.listener, err = net.Listen("tcp", s.addr)
+
 	if err != nil {
 		logger.Fatal(err)
 	}

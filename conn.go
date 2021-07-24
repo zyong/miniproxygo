@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/textproto"
 	"sync"
+	"time"
 )
 
 var requestLine string
@@ -48,6 +49,7 @@ func (c *conn) serve() {
 		}
 	}
 	rawReqHeader.WriteString("\r\n")
+	logger.Debugf("%v\n", rawReqHeader.String())
 
 	// 解析tunnel
 	logger.Info("connecting to " + remote)
@@ -67,9 +69,7 @@ func (c *conn) serve() {
 		}
 	} else {
 		// if not https, should sent the request header to remote
-		writer := bufio.NewWriter(remoteConn)
-		writer.Write(rawReqHeader.Bytes())
-		err := writer.Flush()
+		_, err := rawReqHeader.WriteTo(remoteConn)
 		if err != nil {
 			logger.Error(err)
 			return
@@ -114,14 +114,8 @@ func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
 		reader := bufio.NewReader(remoteConn)
 		writer := bufio.NewWriter(localConn)
 		for {
-			if reader.Size() > 0 {
-				_, err := io.Copy(writer, reader)
-				if err != nil {
-					logger.Errorf("err %v\n", err)
-					wg.Done()
-					return
-				}
-			} else {
+			_, err := io.Copy(writer, reader)
+			if err != nil {
 				wg.Done()
 				return
 			}
@@ -133,17 +127,12 @@ func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
 		reader := bufio.NewReader(localConn)
 		writer := bufio.NewWriter(remoteConn)
 		for {
-			if reader.Size() > 0 {
-				_, err := io.Copy(writer, reader)
-				if err != nil {
-					logger.Errorf("err %v\n", err)
-					wg.Done()
-					return
-				}
-			} else {
+			_, err := io.Copy(writer, reader)
+			if err != nil {
 				wg.Done()
 				return
 			}
+
 		}
 	}()
 	wg.Wait()
@@ -151,7 +140,7 @@ func (c *conn) Relay(remoteConn net.Conn, localConn net.Conn) {
 
 // tunnel http message between client and server
 func (c *conn) connect(remote string) (remoteConn net.Conn, err error) {
-	remoteConn, err = net.Dial("tcp", remote)
+	remoteConn, err = net.DialTimeout("tcp", remote, 2*time.Second)
 	if err != nil {
 		logger.Error(err)
 		return
