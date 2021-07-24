@@ -1,4 +1,4 @@
-module miniproxy
+module miniproxygo
 
 go 1.16
 

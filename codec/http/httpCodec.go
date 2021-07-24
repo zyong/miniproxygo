@@ -1,75 +1,60 @@
-package main
+package http
 
 import (
-	"flag"
 	"fmt"
-	"log"
+	"miniproxygo"
 	"strconv"
 	"strings"
-	"time"
-	"unsafe"
 
 	"github.com/panjf2000/gnet"
 )
 
-func main() {
-	var port int
-	var multicore bool
+var (
+	errMsg = "Internal Server Error"
+)
 
-	// Example command: go run http.go --port 8080 --multicore=true
-	flag.IntVar(&port, "port", 8080, "server port")
-	flag.BoolVar(&multicore, "multicore", true, "multicore")
-	flag.Parse()
-
-	res = "Hello World!\r\n"
-
-	http := new(httpServer)
-	hc := new(httpCodec)
-
-	// Start serving!
-	log.Fatal(gnet.Serve(http, fmt.Sprintf("tcp://:%d", port), gnet.WithMulticore(multicore), gnet.WithCodec(hc)))
+type HttpCodec struct {
+	req request
 }
 
-// appendHandle handles the incoming request and appends the response to
-// the provided bytes, which is then returned to the caller.
-func appendHandle(b []byte, res string) []byte {
-	return appendResp(b, "200 OK", "", res)
-}
-
-// appendResp will append a valid http response to the provide bytes.
-// The status param should be the code plus text such as "200 OK".
-// The head parameter should be a series of lines ending with "\r\n" or empty.
-func appendResp(b []byte, status, head, body string) []byte {
-	b = append(b, "HTTP/1.1"...)
-	b = append(b, ' ')
-	b = append(b, status...)
-	b = append(b, '\r', '\n')
-	b = append(b, "Server: gnet\r\n"...)
-	b = append(b, "Date: "...)
-	b = time.Now().AppendFormat(b, "Mon, 02 Jan 2006 15:04:05 GMT")
-	b = append(b, '\r', '\n')
-	if len(body) > 0 {
-		b = append(b, "Content-Length: "...)
-		b = strconv.AppendInt(b, int64(len(body)), 10)
-		b = append(b, '\r', '\n')
+func (hc *HttpCodec) Encode(c gnet.Conn, buf []byte) (out []byte, err error) {
+	if c.Context() == nil {
+		return buf, nil
 	}
-	b = append(b, head...)
-	b = append(b, '\r', '\n')
-	if len(body) > 0 {
-		b = append(b, body...)
-	}
-	return b
+	return miniproxygo.AppendResp(out, "500 Error", "", errMsg+"\n"), nil
 }
 
-func b2s(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+//
+func (hc *HttpCodec) Decode(c gnet.Conn) (out []byte, err error) {
+	// Read  all data from ring buffer
+	buf := c.Read()
+	// 清空buf
+	c.ResetBuffer()
+
+	// process the pipeline
+	var leftover []byte
+pipeline:
+	leftover, err = parseReq(buf, &hc.req)
+	// bad thing happened
+	if err != nil {
+		c.SetContext(err)
+		return nil, err
+	} else if len(leftover) == len(buf) {
+		// request not ready, yet
+		return
+	}
+	out = []byte{}
+	//
+	c.SetContext(hc.req)
+	buf = leftover
+	goto pipeline
 }
 
 // parseReq is a very simple http request parser. This operation
 // waits for the entire payload to be buffered before returning a
 // valid request.
 func parseReq(data []byte, req *request) (leftover []byte, err error) {
-	sdata := b2s(data)
+	sdata := miniproxygo.B2s(data)
 	var i, s int
 	var head string
 	var clen int

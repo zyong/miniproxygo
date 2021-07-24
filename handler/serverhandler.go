@@ -2,35 +2,28 @@ package handler
 
 import (
 	"log"
+	"miniproxygo"
 
 	"github.com/panjf2000/gnet"
 )
 
-var res string
-
-type request struct {
-	proto, method string
-	path, query   string
-	head, body    string
-	remoteAddr    string
-}
-
-type serverHandler struct {
+type ServerHandler struct {
 	*gnet.EventServer
 }
 
 var (
+	res         string
 	errMsg      = "Internal Server Error"
 	errMsgBytes = []byte(errMsg)
 )
 
-func (sh *serverHandler) OnInitComplete(srv gnet.Server) (action gnet.Action) {
+func (sh *ServerHandler) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 	log.Printf("HTTP server is listening on %s (multi-cores: %t, loops: %d)\n",
 		srv.Addr.String(), srv.Multicore, srv.NumEventLoop)
 	return
 }
 
-func (sh *serverHandler) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
+func (sh *ServerHandler) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
 	if c.Context() != nil {
 		// bad thing happened
 		out = errMsgBytes
@@ -39,5 +32,14 @@ func (sh *serverHandler) React(frame []byte, c gnet.Conn) (out []byte, action gn
 	}
 	// handle the request
 	out = frame
+	res = "Hello World!\r\n"
+	out = appendHandle(out, res)
+
 	return
+}
+
+// appendHandle handles the incoming request and appends the response to
+// the provided bytes, which is then returned to the caller.
+func appendHandle(b []byte, res string) []byte {
+	return miniproxygo.AppendResp(b, "200 OK", "", res)
 }
