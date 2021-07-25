@@ -9,7 +9,7 @@ import (
 
 func init() {
 	format := logging.MustStringFormatter(
-		`%{color}%{time:15:04:05.000} %{shortfile} %{shortfunc} ▶ %{level:.4s}%{color:reset} %{message}`,
+		` %{shortfile} %{shortfunc} ▶ %{level:.4s} %{message}`,
 	)
 
 	// b := logging.NewLogBackend(os.Stderr, "", 0)

@@ -2,9 +2,11 @@ package miniproxy
 
 import (
 	"net"
+	"runtime"
 
 	reuseport "github.com/kavu/go_reuseport"
 	"github.com/op/go-logging"
+	"github.com/panjf2000/ants/v2"
 )
 
 var debug bool = false
@@ -22,6 +24,10 @@ func NewServer(Addr string) *Server {
 
 // Start a proxy server
 func (s *Server) Start() {
+	defer ants.Release()
+	// 调整线程数为CPU数量
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	var err error
 	s.listener, err = reuseport.Listen("tcp", s.addr)
 
@@ -37,7 +43,7 @@ func (s *Server) Start() {
 			logger.Error(err)
 			continue
 		}
-		go s.handlerConn(&conn)
+		ants.Submit(func() { s.handlerConn(&conn) })
 	}
 }
 
