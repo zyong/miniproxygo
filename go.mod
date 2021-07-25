@@ -1,4 +1,4 @@
-module miniproxy
+module github.com/zyong/miniproxygo
 
 go 1.16
 

@@ -1,4 +1,4 @@
-package miniproxy
+package miniproxygo
 
 import (
 	"log"
