@@ -3,11 +3,11 @@ Installing from source
 
 To install, run
 
-    $ go get github.com/zyong/miniproxy-go
+    $ go get github.com/zyong/miniproxygo
 
 Build
 
-    $ go install github.com/zyong/miniproxy-go/miniproxy 
+    $ go install github.com/zyong/miniproxygo/miniproxy
 
 You will now find a `miniproxy` binary in your `$GOPATH/bin` directory.
 
