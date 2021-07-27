@@ -1,0 +1,6 @@
+server:
+  env: pro
+  addr: 0.0.0.0:8080
+  cpunum: true
+  reuseport: true
+  goroutinepool: true

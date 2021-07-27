@@ -9,27 +9,50 @@ import (
 	"github.com/panjf2000/ants/v2"
 )
 
-var debug bool = false
 var logger *logging.Logger = logging.MustGetLogger("Server")
 
 type Server struct {
-	listener net.Listener
-	addr     string
+	listener        net.Listener
+	isReuseport     bool
+	addr            string
+	isGoroutinepool bool
 }
 
 // NewServer create a proxy server
-func NewServer(Addr string) *Server {
-	return &Server{addr: Addr}
+func NewServer() *Server {
+	return &Server{}
+}
+
+func (s *Server) Bind(addr string) {
+	s.addr = addr
+}
+
+func (s *Server) WithNumCPU() {
+	// 调整线程数为CPU数量
+	runtime.GOMAXPROCS(runtime.NumCPU())
+}
+
+func (s *Server) WithReusePort() {
+	// 是否重用端口
+	s.isReuseport = true
+}
+
+func (s *Server) WithGoroutinePool() {
+	s.isGoroutinepool = true
 }
 
 // Start a proxy server
 func (s *Server) Start() {
-	defer ants.Release()
-	// 调整线程数为CPU数量
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	if s.isGoroutinepool {
+		defer ants.Release()
+	}
 
 	var err error
-	s.listener, err = reuseport.Listen("tcp", s.addr)
+	if s.isReuseport {
+		s.listener, err = reuseport.Listen("tcp", s.addr)
+	} else {
+		s.listener, err = net.Listen("tcp", s.addr)
+	}
 
 	if err != nil {
 		logger.Fatal(err)
@@ -43,7 +66,11 @@ func (s *Server) Start() {
 			logger.Error(err)
 			continue
 		}
-		ants.Submit(func() { s.handlerConn(&conn) })
+		if s.isGoroutinepool {
+			ants.Submit(func() { s.handlerConn(&conn) })
+		} else {
+			go s.handlerConn(&conn)
+		}
 	}
 }
 
