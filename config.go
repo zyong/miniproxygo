@@ -9,7 +9,7 @@ import (
 
 type server struct {
 	Env           string `yaml:"env"`
-	Cpunum        bool   `yaml:"cpunum`
+	Cpunum        bool   `yaml:"cpunum"`
 	Addr          string `yaml:"addr"`
 	Reuseport     bool   `yaml:"reuseport"`
 	Goroutinepool bool   `yaml:"goroutinepool"`
