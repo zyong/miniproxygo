@@ -56,7 +56,12 @@ func (logb *FileLogBackend) initCfg(cfgPath string) error {
 		}
 	}
 	// set file writer
-	file, _ := logb.FormatPath()
+	var file string
+	if logb.logCfg.Rotate {
+		file, _ = logb.FormatPath()
+	} else {
+		file = logb.logCfg.LogPath + logb.logCfg.LogFile
+	}
 
 	logFile, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
@@ -99,10 +104,14 @@ func (logb *FileLogBackend) rotate() error {
 	var newFile string
 	// 修改rotate策略，为默认是proxy.log文件
 	// 在需要切文件的时候生成proxy-xxxx.log文件
-	if logb.logCfg.Rotate && len(logb.logCfg.FilePattern) > 0 {
-		newFile, _ = logb.FormatPath()
+	if logb.logCfg.Rotate {
+		if len(logb.logCfg.FilePattern) > 0 {
+			newFile, _ = logb.FormatPath()
+		} else {
+			return fmt.Errorf("FileLogBackend config error in rotate item and filePattern %s", logb.logCfg.FilePattern)
+		}
 	} else {
-		return fmt.Errorf("FileLogBackend config error in rotate item and filePattern %s", logb.logCfg.FilePattern)
+		return nil
 	}
 
 	if logb.fileName == newFile {

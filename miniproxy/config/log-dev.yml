@@ -4,4 +4,4 @@ path: "logs/"
 filePattern: "proxy-yyyy-MM-dd-%H-%M.log"
 level: "INFO"
 prefix: ""
-rotate: true
+rotate: false
