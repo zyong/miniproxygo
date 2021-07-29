@@ -4,3 +4,4 @@ miniproxy/log.log
 miniproxy/miniproxy
 .gitignore
 logs/
+miniproxy/__debug_bin

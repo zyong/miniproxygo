@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/op/go-logging"
@@ -26,7 +27,10 @@ type FileLogBackend struct {
 	logCfg   logCfg
 	Logger   *log.Logger
 	fileName string
+	file     *os.File
 }
+
+var mutex sync.Mutex
 
 func init() {
 	logb := &FileLogBackend{}
@@ -68,6 +72,7 @@ func (logb *FileLogBackend) initCfg(cfgPath string) error {
 		panic(err)
 	}
 	logb.fileName = file
+	logb.file = logFile
 	logb.Logger = log.New(logFile, logb.logCfg.Prefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Llongfile)
 
 	bFormatter := logging.NewBackendFormatter(logb, format)
@@ -90,9 +95,9 @@ func (logb *FileLogBackend) FormatPath() (string, error) {
 	d := t.Day()
 	// replace year month day
 	replacer := strings.NewReplacer(
-		"MM", fmt.Sprintf("%d", m),
-		"dd", fmt.Sprintf("%d", d),
-		"yyyy", fmt.Sprintf("%d", y),
+		"%M", fmt.Sprintf("%d", m),
+		"%d", fmt.Sprintf("%d", d),
+		"%Y", fmt.Sprintf("%d", y),
 		"%H", fmt.Sprintf("%d", t.Hour()),
 		"%M", fmt.Sprintf("%d", t.Minute()),
 		"%S", fmt.Sprintf("%d", t.Second()),
@@ -117,7 +122,10 @@ func (logb *FileLogBackend) rotate() error {
 	if logb.fileName == newFile {
 		return nil
 	}
+	return logb.replace(newFile, logb.fileName)
+}
 
+func (logb *FileLogBackend) replace(newFile, oldFile string) error {
 	file, err := os.OpenFile(newFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return fmt.Errorf("create tmp log file failed %v", err)
@@ -126,12 +134,16 @@ func (logb *FileLogBackend) rotate() error {
 	logb.Logger.SetOutput(file)
 
 	logb.fileName = newFile
+	logb.file.Close()
+	logb.file = file
 	return nil
 }
 
 func (logb *FileLogBackend) Log(level logging.Level, calldepth int, rec *logging.Record) error {
+	mutex.Lock()
 	// 每次输出日志的时候切换文件名
 	logb.rotate()
+	mutex.Unlock()
 	rec.Level = level
 	return logb.Logger.Output(calldepth+2, rec.Formatted(calldepth+1))
 }
