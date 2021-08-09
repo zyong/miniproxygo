@@ -13,6 +13,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	MAX_INT64 = int64(^uint64(0) >> 1)
+)
+
 type logCfg struct {
 	Formatter   string `yaml:"formatter"`
 	LogFile     string `yaml:"logFile"`
@@ -28,9 +32,8 @@ type FileLogBackend struct {
 	Logger   *log.Logger
 	fileName string
 	file     *os.File
+	mutex    sync.Mutex
 }
-
-var mutex sync.Mutex
 
 func init() {
 	logb := &FileLogBackend{}
@@ -109,20 +112,24 @@ func (logb *FileLogBackend) rotate() error {
 	var newFile string
 	// 修改rotate策略，为默认是proxy.log文件
 	// 在需要切文件的时候生成proxy-xxxx.log文件
-	if logb.logCfg.Rotate {
-		if len(logb.logCfg.FilePattern) > 0 {
-			newFile, _ = logb.FormatPath()
-		} else {
-			return fmt.Errorf("FileLogBackend config error in rotate item and filePattern %s", logb.logCfg.FilePattern)
-		}
-	} else {
+
+	if !logb.logCfg.Rotate {
 		return nil
 	}
 
+	if len(logb.logCfg.FilePattern) <= 0 {
+		return fmt.Errorf("FileLogBackend config error in rotate item and filePattern %s", logb.logCfg.FilePattern)
+	}
+
+	logb.mutex.Lock()
+	newFile, _ = logb.FormatPath()
+	defer logb.mutex.Unlock()
 	if logb.fileName == newFile {
 		return nil
 	}
-	return logb.replace(newFile, logb.fileName)
+
+	err := logb.replace(newFile, logb.fileName)
+	return err
 }
 
 func (logb *FileLogBackend) replace(newFile, oldFile string) error {
@@ -140,10 +147,8 @@ func (logb *FileLogBackend) replace(newFile, oldFile string) error {
 }
 
 func (logb *FileLogBackend) Log(level logging.Level, calldepth int, rec *logging.Record) error {
-	mutex.Lock()
-	// 每次输出日志的时候切换文件名
+
 	logb.rotate()
-	mutex.Unlock()
 	rec.Level = level
 	return logb.Logger.Output(calldepth+2, rec.Formatted(calldepth+1))
 }
