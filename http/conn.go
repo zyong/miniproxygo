@@ -1,4 +1,4 @@
-package miniproxygo
+package http
 
 import (
 	"bufio"
@@ -9,27 +9,29 @@ import (
 	"net/textproto"
 	"sync"
 	"time"
+
+	"github.com/op/go-logging"
 )
+
+var logger *logging.Logger = logging.MustGetLogger("http")
 
 var requestLine string
 
-type conn struct {
+type httpHandler struct {
 	localConn *net.Conn
-	server    *Server
 	header    *header
 }
 
-func NewConn(s *Server, rwc *net.Conn) *conn {
-	return &conn{
-		server:    s,
+func NewConn(rwc *net.Conn) *httpHandler {
+	return &httpHandler{
 		localConn: rwc,
 		header:    NewHeader(),
 	}
 }
 
-// serve tunnel the client connection to remote host
+// Serve tunnel the client connection to remote host
 // if conn doesn't close，we should loop read
-func (c *conn) serve() {
+func (c *httpHandler) Serve() {
 	defer (*c.localConn).Close()
 	// 读取消息体
 	err := c.readMessage()
@@ -87,7 +89,7 @@ func (c *conn) serve() {
 /**
  * 读取消息可能分几次读取，一次获取到的消息可能不完整
  */
-func (c *conn) readMessage() error {
+func (c *httpHandler) readMessage() error {
 	reader := bufio.NewReader(*c.localConn)
 	// 读取完成header
 	// readHeader(reader)
@@ -110,7 +112,7 @@ func (c *conn) readMessage() error {
 	return nil
 }
 
-func (c *conn) Relay(remoteConn *net.Conn, localConn *net.Conn) {
+func (c *httpHandler) Relay(remoteConn *net.Conn, localConn *net.Conn) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -166,7 +168,7 @@ func (c *conn) Relay(remoteConn *net.Conn, localConn *net.Conn) {
 }
 
 // tunnel http message between client and server
-func (c *conn) connect(remote string) (remoteConn net.Conn, err error) {
+func (c *httpHandler) connect(remote string) (remoteConn net.Conn, err error) {
 	remoteConn, err = net.DialTimeout("tcp", remote, 5*time.Second)
 	if err != nil {
 		logger.Error(err)
@@ -183,7 +185,7 @@ func (b *BadRequestError) Error() string {
 	return b.what
 }
 
-func (c *conn) read(conn *net.Conn) (buf []byte, err error) {
+func (c *httpHandler) read(conn *net.Conn) (buf []byte, err error) {
 	bs := make([]byte, 50)
 	nr, err := (*conn).Read(bs)
 	if err != nil {

@@ -5,3 +5,8 @@ miniproxy/miniproxy
 .gitignore
 logs/
 miniproxy/__debug_bin
+.idea/miniproxygo.iml
+.gitignore
+.idea/vcs.xml
+.gitignore
+.idea/modules.xml

@@ -1,4 +1,4 @@
-package miniproxygo
+package http
 
 import (
 	"bytes"

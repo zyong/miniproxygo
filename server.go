@@ -3,10 +3,13 @@ package miniproxygo
 import (
 	"net"
 	"runtime"
+	"strconv"
 
 	reuseport "github.com/kavu/go_reuseport"
 	"github.com/op/go-logging"
 	"github.com/panjf2000/ants/v2"
+	"github.com/zyong/miniproxygo/http"
+	"github.com/zyong/miniproxygo/socks"
 )
 
 var logger *logging.Logger = logging.MustGetLogger("Server")
@@ -67,15 +70,24 @@ func (s *Server) Start() {
 			continue
 		}
 		if s.isGoroutinepool {
-			ants.Submit(func() { s.handlerConn(&conn) })
+			ants.Submit(func() { serverHandler(&conn) })
 		} else {
-			go s.handlerConn(&conn)
+			go serverHandler(&conn)
 		}
 	}
 }
 
 // newConn create a conn to serve client request
-func (s *Server) handlerConn(rwc *net.Conn) {
-	conn := NewConn(s, rwc)
-	conn.serve()
+func serverHandler(conn *net.Conn) {
+	hostport := (*conn).LocalAddr().String()
+	_, sport, _ := net.SplitHostPort(hostport)
+
+	port, _ := strconv.Atoi(sport)
+	if port == 8080 {
+		request := socks.NewRequest(conn)
+		request.Serv()
+	} else if port == 10000 {
+		handler := http.NewConn(conn)
+		handler.Serve()
+	}
 }
