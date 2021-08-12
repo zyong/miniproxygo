@@ -1,7 +1,7 @@
 formatter: "%{shortfile} %{shortfunc} ▶ %{level:.4s} %{message}"
 logFile: "proxy.log"
 path: "logs/"
-filePattern: "proxy-yyyy-MM-dd-%H-%M.log"
+filePattern: "proxy-%Y-%M-%d-%H-%M.log"
 level: "INFO"
 prefix: ""
-rotate: false
+rotate: true

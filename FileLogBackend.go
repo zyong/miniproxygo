@@ -6,10 +6,15 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/op/go-logging"
 	"gopkg.in/yaml.v2"
+)
+
+const (
+	MAX_INT64 = int64(^uint64(0) >> 1)
 )
 
 type logCfg struct {
@@ -26,6 +31,8 @@ type FileLogBackend struct {
 	logCfg   logCfg
 	Logger   *log.Logger
 	fileName string
+	file     *os.File
+	mutex    sync.Mutex
 }
 
 func init() {
@@ -68,6 +75,7 @@ func (logb *FileLogBackend) initCfg(cfgPath string) error {
 		panic(err)
 	}
 	logb.fileName = file
+	logb.file = logFile
 	logb.Logger = log.New(logFile, logb.logCfg.Prefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Llongfile)
 
 	bFormatter := logging.NewBackendFormatter(logb, format)
@@ -90,9 +98,9 @@ func (logb *FileLogBackend) FormatPath() (string, error) {
 	d := t.Day()
 	// replace year month day
 	replacer := strings.NewReplacer(
-		"MM", fmt.Sprintf("%d", m),
-		"dd", fmt.Sprintf("%d", d),
-		"yyyy", fmt.Sprintf("%d", y),
+		"%M", fmt.Sprintf("%d", m),
+		"%d", fmt.Sprintf("%d", d),
+		"%Y", fmt.Sprintf("%d", y),
 		"%H", fmt.Sprintf("%d", t.Hour()),
 		"%M", fmt.Sprintf("%d", t.Minute()),
 		"%S", fmt.Sprintf("%d", t.Second()),
@@ -104,20 +112,27 @@ func (logb *FileLogBackend) rotate() error {
 	var newFile string
 	// 修改rotate策略，为默认是proxy.log文件
 	// 在需要切文件的时候生成proxy-xxxx.log文件
-	if logb.logCfg.Rotate {
-		if len(logb.logCfg.FilePattern) > 0 {
-			newFile, _ = logb.FormatPath()
-		} else {
-			return fmt.Errorf("FileLogBackend config error in rotate item and filePattern %s", logb.logCfg.FilePattern)
-		}
-	} else {
+
+	if !logb.logCfg.Rotate {
 		return nil
 	}
 
+	if len(logb.logCfg.FilePattern) <= 0 {
+		return fmt.Errorf("FileLogBackend config error in rotate item and filePattern %s", logb.logCfg.FilePattern)
+	}
+
+	logb.mutex.Lock()
+	newFile, _ = logb.FormatPath()
+	defer logb.mutex.Unlock()
 	if logb.fileName == newFile {
 		return nil
 	}
 
+	err := logb.replace(newFile, logb.fileName)
+	return err
+}
+
+func (logb *FileLogBackend) replace(newFile, oldFile string) error {
 	file, err := os.OpenFile(newFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return fmt.Errorf("create tmp log file failed %v", err)
@@ -126,11 +141,13 @@ func (logb *FileLogBackend) rotate() error {
 	logb.Logger.SetOutput(file)
 
 	logb.fileName = newFile
+	logb.file.Close()
+	logb.file = file
 	return nil
 }
 
 func (logb *FileLogBackend) Log(level logging.Level, calldepth int, rec *logging.Record) error {
-	// 每次输出日志的时候切换文件名
+
 	logb.rotate()
 	rec.Level = level
 	return logb.Logger.Output(calldepth+2, rec.Formatted(calldepth+1))
