@@ -1,93 +1,67 @@
-package miniproxygo
+package main
 
 import (
-	"net"
+	"flag"
+	"log"
+	"os"
+	"os/signal"
 	"runtime"
-	"strconv"
+	"runtime/pprof"
 
-	reuseport "github.com/kavu/go_reuseport"
-	"github.com/op/go-logging"
-	"github.com/panjf2000/ants/v2"
-	"github.com/zyong/miniproxygo/http"
-	"github.com/zyong/miniproxygo/socks"
+	"github.com/zyong/miniproxygo"
 )
 
-var logger *logging.Logger = logging.MustGetLogger("Server")
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
+var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 
-type Server struct {
-	listener        net.Listener
-	isReuseport     bool
-	addr            string
-	isGoroutinepool bool
-}
+var confpath = flag.String("confpath", "config/config-dev.yml", "server config file path")
 
-// NewServer create a proxy server
-func NewServer() *Server {
-	return &Server{}
-}
+func main() {
 
-func (s *Server) Bind(addr string) {
-	s.addr = addr
-}
+	flag.Parse()
 
-func (s *Server) WithNumCPU() {
-	// 调整线程数为CPU数量
-	runtime.GOMAXPROCS(runtime.NumCPU())
-}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go signalHandler(c)
 
-func (s *Server) WithReusePort() {
-	// 是否重用端口
-	s.isReuseport = true
-}
-
-func (s *Server) WithGoroutinePool() {
-	s.isGoroutinepool = true
-}
-
-// Start a proxy server
-func (s *Server) Start() {
-	if s.isGoroutinepool {
-		defer ants.Release()
-	}
-
-	var err error
-	if s.isReuseport {
-		s.listener, err = reuseport.Listen("tcp", s.addr)
-	} else {
-		s.listener, err = net.Listen("tcp", s.addr)
-	}
-
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	logger.Infof("proxy listen in %s, waiting for connection...\n", s.addr)
-
-	for {
-		conn, err := s.listener.Accept()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
 		if err != nil {
-			logger.Error(err)
-			continue
+			log.Fatal("could not create CPU profile: ", err)
 		}
-		if s.isGoroutinepool {
-			ants.Submit(func() { serverHandler(&conn) })
-		} else {
-			go serverHandler(&conn)
+		if err := pprof.StartCPUProfile(f); err != nil { //监控cpu
+			log.Fatal("could not start CPU profile: ", err)
 		}
 	}
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		runtime.GC()                                      // GC，获取最新的数据信息
+		if err := pprof.WriteHeapProfile(f); err != nil { // 写入内存信息
+			log.Fatal("could not write memory profile: ", err)
+		}
+		f.Close()
+	}
+
+	conf, _ := miniproxygo.NewConfig(*confpath)
+	server := miniproxygo.NewServer()
+
+	server.Bind(conf.Serv.Addr)
+	if conf.Serv.Goroutinepool {
+		server.WithGoroutinePool()
+	}
+	if conf.Serv.Cpunum {
+		server.WithNumCPU()
+	}
+	server.Start()
+	select {}
 }
 
-// newConn create a conn to serve client request
-func serverHandler(conn *net.Conn) {
-	hostport := (*conn).LocalAddr().String()
-	_, sport, _ := net.SplitHostPort(hostport)
-
-	port, _ := strconv.Atoi(sport)
-	if port == 8080 {
-		request := socks.NewRequest(conn)
-		request.Serv()
-	} else if port == 10000 {
-		handler := http.NewConn(conn)
-		handler.Serve()
-	}
+func signalHandler(c chan os.Signal) {
+	<-c
+	pprof.StopCPUProfile()
+	os.Exit(0)
 }
