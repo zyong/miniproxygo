@@ -1,4 +1,4 @@
-package socks
+package m_socks
 
 import (
 	"fmt"
@@ -90,9 +90,9 @@ func (r *request) Resolve(status uint) bool {
 	}
 
 	// read length less 4 byte is bad,
-	// socks init 4byte
+	// m_socks init 4byte
 	if n < 3 {
-		logger.Panicf("socks request read byte length small: %d", n)
+		logger.Panicf("m_socks request read byte length small: %d", n)
 	}
 
 	if status == STATUS_VERIFY {
@@ -100,7 +100,7 @@ func (r *request) Resolve(status uint) bool {
 		if b[0] == 0x05 {
 			r.version = 5
 		} else {
-			logger.Panic("socks request other version protocol")
+			logger.Panic("m_socks request other version protocol")
 		}
 	}
 

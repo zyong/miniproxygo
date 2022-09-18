@@ -1,4 +1,4 @@
-package http
+package m_http
 
 import (
 	"bytes"
@@ -63,14 +63,14 @@ func (h *header) ResolveHeader(line string) error {
 					h.uri = line[s1+1:]
 				}
 			default:
-				logger.Errorf("error line %s\n", line)
+				//logger.Errorf("error line %s\n", line)
 				return &BadRequestError{
 					what: "bad request",
 				}
 			}
 
 		} else {
-			logger.Errorf("error line %s\n", line)
+			//logger.Errorf("error line %s\n", line)
 			return &BadRequestError{
 				what: "bad request",
 			}

@@ -1,4 +1,4 @@
-package miniproxygo
+package m_config
 
 import (
 	"io/ioutil"
@@ -15,16 +15,18 @@ type server struct {
 	Goroutinepool bool   `yaml:"goroutinepool"`
 }
 
-type config struct {
-	Serv server `yaml:"server"`
+type Conf struct {
+	Serv server `yaml:"m_server"`
 }
 
-var conf config
+func SetDefaultConfig(conf *Conf) {
 
-func NewConfig(path string) (config, error) {
-	if conf != (config{}) {
-		return conf, nil
-	}
+}
+
+func ConfigLoad(path string, root string) (Conf, error) {
+	var conf Conf
+	SetDefaultConfig(&conf)
+
 	cfgData, err := ioutil.ReadFile(path)
 	if err != nil {
 		panic(err)

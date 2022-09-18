@@ -1,4 +1,4 @@
-package http
+package m_http
 
 import (
 	"bufio"
@@ -9,11 +9,7 @@ import (
 	"net/textproto"
 	"sync"
 	"time"
-
-	"github.com/op/go-logging"
 )
-
-var logger *logging.Logger = logging.MustGetLogger("http")
 
 var requestLine string
 
@@ -36,14 +32,14 @@ func (c *httpHandler) Serve() {
 	// 读取消息体
 	err := c.readMessage()
 	if err != nil {
-		logger.Errorf("read message err %v\n", err)
+		//logger.Errorf("read message err %v\n", err)
 		return
 	}
 
-	// rebuild http request header
+	// rebuild m_http request header
 	var rawReqHeader bytes.Buffer
 	remote, _ := c.header.Remote()
-	logger.Infof("request %s \n", remote)
+	//logger.Infof("request %s \n", remote)
 
 	// GET http://www.baidu.com/
 	rawReqHeader.WriteString(requestLine + "\r\n")
@@ -53,13 +49,13 @@ func (c *httpHandler) Serve() {
 		}
 	}
 	rawReqHeader.WriteString("\r\n")
-	logger.Debugf("raw req header %v\n", rawReqHeader.String())
+	//logger.Debugf("raw req header %v\n", rawReqHeader.String())
 
 	// 解析tunnel
-	logger.Info("connecting to " + remote)
+	//logger.Info("connecting to " + remote)
 	remoteConn, err := c.connect(remote)
 	if err != nil {
-		logger.Errorf("connect error %v\n", err)
+		//logger.Errorf("connect error %v\n", err)
 		return
 	}
 	defer remoteConn.Close()
@@ -68,22 +64,22 @@ func (c *httpHandler) Serve() {
 		// if https, should sent 200 to client
 		_, err = (*c.localConn).Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 		if err != nil {
-			logger.Error(err)
+			//logger.Error(err)
 			return
 		}
 	} else {
 		// if not https, should sent the request header to remote
 		_, err := rawReqHeader.WriteTo(remoteConn)
 		if err != nil {
-			logger.Error(err)
+			//logger.Error(err)
 			return
 		}
 	}
 
 	// build bidirectional-streams
-	logger.Info("begin tunnel", (*c.localConn).RemoteAddr(), "<->", remote)
+	//logger.Info("begin tunnel", (*c.localConn).RemoteAddr(), "<->", remote)
 	c.Relay(&remoteConn, c.localConn)
-	logger.Info("stop tunnel", (*c.localConn).RemoteAddr(), "<->", remote)
+	//logger.Info("stop tunnel", (*c.localConn).RemoteAddr(), "<->", remote)
 }
 
 /**
@@ -121,16 +117,16 @@ func (c *httpHandler) Relay(remoteConn *net.Conn, localConn *net.Conn) {
 		// remoteConn.SetReadDeadline(time.Now().Add(10 * time.Second))
 		// localConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		for {
-			logger.Debug("loop read remote write local\n")
+			//logger.Debug("loop read remote write local\n")
 			bs, err := c.read(remoteConn)
 			if err != nil || err == io.EOF {
 				goto noloop
 			}
-			logger.Debugf("loop read read %s byte\n", string(bs))
+			//logger.Debugf("loop read read %s byte\n", string(bs))
 
 			if len(bs) > 0 {
 				_, err = (*localConn).Write(bs)
-				logger.Debugf("write local conn %v\n", string(bs))
+				//logger.Debugf("write local conn %v\n", string(bs))
 			}
 			if err != nil || err == io.EOF {
 				goto noloop
@@ -145,16 +141,16 @@ func (c *httpHandler) Relay(remoteConn *net.Conn, localConn *net.Conn) {
 		// (*localConn).SetReadDeadline(time.Now().Add(10 * time.Second))
 		// (*remoteConn).SetWriteDeadline(time.Now().Add(10 * time.Second))
 		for {
-			logger.Debug("loop write remote read local\n")
+			//logger.Debug("loop write remote read local\n")
 			bs, err := c.read(localConn)
 			if err != nil || err == io.EOF {
 				goto noloop
 			}
-			logger.Debugf("loop read local %s byte\n", string(bs))
+			//logger.Debugf("loop read local %s byte\n", string(bs))
 
 			if len(bs) > 0 {
 				_, err = (*remoteConn).Write(bs)
-				logger.Debugf("write remote conn %v\n", string(bs))
+				//logger.Debugf("write remote conn %v\n", string(bs))
 			}
 
 			if err != nil || err == io.EOF {
@@ -167,11 +163,11 @@ func (c *httpHandler) Relay(remoteConn *net.Conn, localConn *net.Conn) {
 	wg.Wait()
 }
 
-// tunnel http message between client and server
+// tunnel m_http message between client and m_server
 func (c *httpHandler) connect(remote string) (remoteConn net.Conn, err error) {
 	remoteConn, err = net.DialTimeout("tcp", remote, 5*time.Second)
 	if err != nil {
-		logger.Error(err)
+		//logger.Error(err)
 		return
 	}
 	return
@@ -203,12 +199,12 @@ func readHeader(reader *bufio.Reader) {
 			if err == io.EOF {
 				break
 			}
-			logger.Errorf("reader read byte err %v\n", err)
+			//logger.Errorf("reader read byte err %v\n", err)
 			break
 		}
 		buf.WriteByte(b)
 	}
-	logger.Infof("%v\n", buf.String())
+	//logger.Infof("%v\n", buf.String())
 	format(buf)
 }
 

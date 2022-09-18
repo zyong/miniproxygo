@@ -1,0 +1,6 @@
+server:
+  env: dev
+  addr: 0.0.0.0:8080
+  cpunum: true
+  reuseport: false
+  goroutinepool: false

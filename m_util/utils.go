@@ -1,4 +1,4 @@
-package miniproxygo
+package m_util
 
 import (
 	"math/rand"
