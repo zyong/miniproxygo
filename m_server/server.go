@@ -6,13 +6,8 @@ import (
 	"github.com/zyong/miniproxygo/m_config"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 	"time"
-)
-
-import (
-	"github.com/zyong/miniproxygo/m_socks"
 )
 
 type Server struct {
@@ -68,8 +63,11 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 		return err
 	}
 
-
 	serveChan := make(chan error)
+	go func() {
+		err := s.ServeSocks()
+		serveChan <- err
+	}()
 
 	err = <-serveChan
 	return err
@@ -107,15 +105,8 @@ func (srv *Server) InitSocks() (err error) {
 }
 
 // newConn create a conn to serve client request
-func (s *Server) serv(conn *net.Conn) {
-	hostport := (*conn).LocalAddr().String()
-	_, sport, _ := net.SplitHostPort(hostport)
-
-	port, _ := strconv.Atoi(sport)
-	if port == 8080 {
-		request := m_socks.NewRequest(conn)
-		request.Serv()
-	}
+func (s *Server) ServeSocks() (err error) {
+	return s.Serve(s.listener, s.listener, "tcp")
 }
 
 

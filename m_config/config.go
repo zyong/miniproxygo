@@ -13,6 +13,11 @@ type ConfigBasic struct {
 	MonitorPort int
 	MaxCpus     int
 
+	RemoteServer string
+	Cipher	string
+	Key		string
+	Password string
+
 	// settings of communicate with http client
 	TLSHandShakeTimeout     int  // tls handshake timeout, in seconds
 	ClientReadTimeout       int  // read timeout, in seconds
