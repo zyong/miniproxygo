@@ -88,15 +88,7 @@ type UserPassNegotiationReply struct {
 	Status byte
 }
 
-// Request is the request packet
-type Request struct {
-	Ver     byte
-	Cmd     byte
-	Rsv     byte // 0x00
-	Atyp    byte
-	DstAddr []byte
-	DstPort []byte // 2 bytes
-}
+
 
 // Reply is the reply packet
 type Reply struct {

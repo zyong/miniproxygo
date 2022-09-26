@@ -72,7 +72,7 @@ func main() {
 	log.Logger.Info("miniproxy[version:%s] start", version)
 
 	// load server config
-	confPath := path.Join(*confRoot, "config.yml")
+	confPath := path.Join(*confRoot, "miniproxy.conf")
 	config, err = m_config.ConfigLoad(confPath, *confRoot)
 	if err != nil {
 		log.Logger.Error("main(): in ConfigLoad():%s", err.Error())
@@ -83,5 +83,4 @@ func main() {
 	if err = m_server.Start(config, version, *confRoot); err != nil {
 		log.Logger.Error("main(): server.StartUp(): %s", err.Error())
 	}
-	select {}
 }

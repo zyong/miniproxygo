@@ -3,15 +3,18 @@ package m_server
 import (
 	"encoding/base64"
 	"errors"
-	"github.com/baidu/go-lib/gotrack"
-	"github.com/baidu/go-lib/log"
-	"github.com/zyong/miniproxygo/m_core"
 	"io"
 	"net"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+)
+
+import (
+	"github.com/baidu/go-lib/gotrack"
+	"github.com/baidu/go-lib/log"
+	"github.com/zyong/miniproxygo/m_core"
 )
 
 
@@ -367,9 +370,6 @@ func newConn(rwc net.Conn, srv *Server) (c *conn, err error) {
 	c.remoteAddr = rwc.RemoteAddr().String()
 	c.server = srv
 	c.rwc = rwc
-	c.sr = liveSwitchReader{r: c.rwc}
-	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
-	c.reqSN = 0
 
 	return c, nil
 }

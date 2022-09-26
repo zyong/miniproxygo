@@ -3,11 +3,14 @@ package m_server
 import (
 	"fmt"
 	"github.com/baidu/go-lib/log"
-	"github.com/zyong/miniproxygo/m_config"
 	"net"
 	"os"
 	"sync"
 	"time"
+)
+
+import (
+	"github.com/zyong/miniproxygo/m_config"
 )
 
 type Server struct {
@@ -53,11 +56,12 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 	s := NewServer(cfg, confRoot, version)
 
 	// initial http
-	if err = s.InitHttp(); err != nil {
-		log.Logger.Error("Start: InitHttp():%s", err.Error())
-		return err
-	}
+	//if err = s.InitHttp(); err != nil {
+	//	log.Logger.Error("Start: InitHttp():%s", err.Error())
+	//	return err
+	//}
 
+	// initial Socks
 	if err = s.InitSocks(); err != nil {
 		log.Logger.Error("Start: InitSocks():%s", err.Error())
 		return err
@@ -77,7 +81,7 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 // InitConfig set some parameter based on config.
 func (srv *Server) InitConfig() {
 	// set service port, according to config
-	srv.Addr = fmt.Sprintf(":%d", srv.Config.Server.HttpPort)
+	srv.Addr = fmt.Sprintf(":%d", srv.Config.Server.Port)
 
 	// set TlsHandshakeTimeout
 	if srv.Config.Server.TlsHandshakeTimeout != 0 {
@@ -101,7 +105,19 @@ func (srv *Server) InitHttp() (err error) {
 }
 
 func (srv *Server) InitSocks() (err error) {
+	// initialize socks proto handlers
+	// initialize socks
 	return nil
+}
+
+func (srv *Server) InitListeners(config m_config.Conf) (err error) {
+	srv.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", config.Server.Port))
+	if err != nil {
+		return err
+	}
+	// wrap underlying listener according to balancer type
+	log.Logger.Info("InitListeners(): begin to listen [:%d]", config.Server.Port)
+	return err
 }
 
 // newConn create a conn to serve client request

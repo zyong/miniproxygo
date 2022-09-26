@@ -9,7 +9,7 @@ import (
 )
 
 type ConfigBasic struct {
-	HttpPort    int
+	Port    int
 	MonitorPort int
 	MaxCpus     int
 
@@ -41,11 +41,13 @@ type ConfigBasic struct {
 }
 
 type Conf struct {
-	Server ConfigBasic `yaml:"m_server"`
+	Server   ConfigBasic
+	Username string
+	Password string
 }
 
 func (cfg *ConfigBasic) SetDefaultConfig() {
-	cfg.HttpPort = 8080
+	cfg.Port = 8080
 	cfg.MonitorPort = 8421
 	cfg.MaxCpus = 0
 
