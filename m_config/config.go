@@ -8,68 +8,50 @@ import (
 	gcfg "gopkg.in/gcfg.v1"
 )
 
-type ConfigBasic struct {
-	Port    int
-	MonitorPort int
-	MaxCpus     int
-
+type ConfigServer struct {
+	Port 	int
 	RemoteServer string
+
 	Cipher	string
 	Key		string
 	Password string
 
 	// settings of communicate with http client
-	TLSHandShakeTimeout     int  // tls handshake timeout, in seconds
 	ClientReadTimeout       int  // read timeout, in seconds
 	ClientWriteTimeout      int  // read timeout, in seconds
 	GracefulShutdownTimeout int  // graceful shutdown timeout, in seconds
-	MaxHeaderBytes          int  // max header length inbytes in request
-	MaxHeaderUriBytes       int  // max URI (in header) length in bytes in request
-	MaxProxyHeaderBytes     int  // max header length in bytes in Proxy protocol
-	KeepAliveEnabled        bool // if false, client connection is shutdown disregard of http headers
-
-	Modules []string // modules to load
-
-	DebugServHttp bool // whether open server http debug log
 
 	ConnectionTimeout int
 	ReadTimeout       int
 	WriteTimeout      int
 
 	MaxIdle             int
-	TlsHandshakeTimeout int
 }
 
 type Conf struct {
-	Server   ConfigBasic
+	Server   ConfigServer
 	Username string
 	Password string
 }
 
-func (cfg *ConfigBasic) SetDefaultConfig() {
-	cfg.Port = 8080
-	cfg.MonitorPort = 8421
-	cfg.MaxCpus = 0
-
-	cfg.TLSHandShakeTimeout = 30
+func (cfg *ConfigServer) SetDefaultConfig() {
 	cfg.ClientReadTimeout = 60
 	cfg.ClientWriteTimeout = 60
 	cfg.GracefulShutdownTimeout = 10
-	cfg.MaxHeaderBytes = 1048576
-	cfg.MaxHeaderUriBytes = 8192
-	cfg.KeepAliveEnabled = true
-
 }
 
-func SetDefaultConfig(conf *Conf) {
+func SetDefaultClientConfig(conf *Conf) {
+}
+
+func SetDefaultServerConfig(conf *Conf) {
 	conf.Server.SetDefaultConfig()
 }
 
-func ConfigLoad(path string, root string) (Conf, error) {
+func ConfigLoad(path string, root string, f func(conf *Conf)) (Conf, error) {
 	var cfg Conf
 	var err error
 
-	SetDefaultConfig(&cfg)
+	f(&cfg)
 
 	err = gcfg.ReadFileInto(&cfg, path)
 	if err != nil {
