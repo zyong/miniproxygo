@@ -3,6 +3,7 @@ package m_server
 import (
 	"fmt"
 	"github.com/baidu/go-lib/log"
+	"github.com/zyong/miniproxygo/m_core"
 	"net"
 	"os"
 	"sync"
@@ -15,6 +16,7 @@ import (
 
 type Server struct {
 	Addr		string
+	Cipher		m_core.Cipher
 	ReadTimeout             time.Duration // maximum duration before timing out read of the request
 	WriteTimeout            time.Duration // maximum duration before timing out write of the response
 	TlsHandshakeTimeout     time.Duration // maximum duration before timing out handshake
@@ -63,11 +65,18 @@ func StartClient(cfg m_config.Conf, version string, confRoot string) error {
 
 	serveChan := make(chan error)
 	go func() {
-		err := s.ServeSocks()
+		err := s.ServeSocksLocal()
 		serveChan <- err
 	}()
 
 	err = <-serveChan
+	return err
+}
+
+func (s *Server) ServeSocksLocal() (err error) {
+	log.Logger.Info("Start: SOCKS proxy local %s <-> %s", s.Addr, s.Config.Server.RemoteServer)
+
+
 	return err
 }
 
