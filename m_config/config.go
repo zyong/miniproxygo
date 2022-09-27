@@ -21,10 +21,6 @@ type ConfigServer struct {
 	ClientWriteTimeout      int  // read timeout, in seconds
 	GracefulShutdownTimeout int  // graceful shutdown timeout, in seconds
 
-	ConnectionTimeout int
-	ReadTimeout       int
-	WriteTimeout      int
-
 	MaxIdle             int
 }
 

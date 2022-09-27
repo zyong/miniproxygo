@@ -2,8 +2,6 @@ package m_server
 
 import (
 	"errors"
-	"github.com/shadowsocks/go-shadowsocks2/socks"
-	"github.com/zyong/miniproxygo/m_socks"
 	"io"
 	"io/ioutil"
 	"net"
@@ -14,6 +12,7 @@ import (
 
 import (
 	"github.com/baidu/go-lib/log"
+	"github.com/zyong/miniproxygo/m_socks"
 )
 
 func delayCalc(delay time.Duration) time.Duration {
@@ -47,7 +46,7 @@ func (srv *Server) ServeClient(l net.Listener, server string) error {
 			if err != nil {
 
 				// UDP: keep the connection until disconnect then free the UDP socket
-				if err == socks.InfoUDPAssociate {
+				if err == m_socks.InfoUDPAssociate {
 					buf := make([]byte, 1)
 					// block here
 					for {

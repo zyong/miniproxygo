@@ -125,7 +125,7 @@ func (srv *Server) InitSocks() (err error) {
 
 // newConn create a conn to serve client request
 func (s *Server) ServeSocks() (err error) {
-	return s.Serve(s.listener, s.listener, "tcp")
+	return s.ServeServer(s.listener, s.listener, "tcp")
 }
 
 
