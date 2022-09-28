@@ -128,7 +128,7 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 			defer rc.Close()
 
 			// create data structure for new connection
-			sc := shadow(c)
+			rc = shadow(rc)
 
 			if _, err = rc.Write(tgt); err != nil {
 				log.Logger.Warn("socks: failed to send target address: %v", err)
@@ -136,7 +136,7 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 			}
 
 			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), tgt)
-			if err = srv.relay(sc, rc); err != nil {
+			if err = srv.relay(rc, c); err != nil {
 				log.Logger.Warn("socks: relay error from %v:%v", c.RemoteAddr(), err)
 			}
 
@@ -179,13 +179,14 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 			}
 
 			rc, err := net.Dial("tcp", tgt.String())
+			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), tgt)
+
 			if err != nil {
 				log.Logger.Warn("socks: failed to connect to target: %v", err)
 				return
 			}
 			defer rc.Close()
 
-			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), tgt)
 			if err = srv.relay(sc, rc); err != nil {
 				log.Logger.Warn("socks: relay error: %v", err)
 			}
