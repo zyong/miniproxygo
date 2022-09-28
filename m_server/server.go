@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/baidu/go-lib/log"
 	"github.com/zyong/miniproxygo/m_core"
+	"github.com/zyong/miniproxygo/m_socks"
 	"net"
 	"os"
 	"sync"
@@ -52,7 +53,7 @@ func NewServer(cfg m_config.Conf, confRoot string, version string) *Server {
 }
 
 // Start a proxy client
-func StartClient(cfg m_config.Conf, version string, confRoot string) error {
+func Start(cfg m_config.Conf, version string, confRoot string) error {
 	var err error
 
 	s := NewServer(cfg, confRoot, version)
@@ -64,10 +65,19 @@ func StartClient(cfg m_config.Conf, version string, confRoot string) error {
 	}
 
 	serveChan := make(chan error)
-	go func() {
-		err := s.ServeSocksLocal()
-		serveChan <- err
-	}()
+
+	if s.Config.Server.Local {
+		go func() {
+			err := s.ServeSocksLocal()
+			serveChan <- err
+		}()
+	} else {
+		go func() {
+			err := s.ServeSocksServer()
+			serveChan <- err
+		}()
+	}
+
 
 	err = <-serveChan
 	return err
@@ -75,33 +85,16 @@ func StartClient(cfg m_config.Conf, version string, confRoot string) error {
 
 func (s *Server) ServeSocksLocal() (err error) {
 	log.Logger.Info("Start: SOCKS proxy local %s <-> %s", s.Addr, s.Config.Server.RemoteServer)
-
-
-	return err
+	shadow := s.Cipher.StreamConn
+	return s.ServeLocal(s.listener, shadow, func(c net.Conn) (m_socks.Addr, error) { return m_socks.HandShake(c) })
 }
 
-// Start a proxy server
-func StartServer(cfg m_config.Conf, version string, confRoot string) error {
-	var err error
-
-	s := NewServer(cfg, confRoot, version)
-
-	// initial Socks
-	if err = s.InitSocks(); err != nil {
-		log.Logger.Error("Start: InitSocks():%s", err.Error())
-		return err
-	}
-
-	serveChan := make(chan error)
-	go func() {
-		err := s.ServeSocks()
-		serveChan <- err
-	}()
-
-	err = <-serveChan
-	return err
+// newConn create a conn to serve client request
+func (s *Server) ServeSocksServer() (err error) {
+	log.Logger.Info("Start: SOCKS proxy server %s", s.Addr)
+	shadow := s.Cipher.StreamConn
+	return s.ServeServer(s.listener, shadow)
 }
-
 
 // InitConfig set some parameter based on config.
 func (srv *Server) InitConfig() {
@@ -122,12 +115,6 @@ func (srv *Server) InitSocks() (err error) {
 	// initialize socks
 	return nil
 }
-
-// newConn create a conn to serve client request
-func (s *Server) ServeSocks() (err error) {
-	return s.ServeServer(s.listener, s.listener, "tcp")
-}
-
 
 // ShutdownHandler is signal handler for QUIT
 func (srv *Server) ShutdownHandler(sig os.Signal) {

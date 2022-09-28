@@ -1,6 +1,7 @@
 package m_socks
 
 import (
+	"github.com/baidu/go-lib/log"
 	"io"
 	"net"
 	"strconv"
@@ -275,18 +276,22 @@ func HandShake(rw io.ReadWriter) (Addr, error) {
 	buf := make([]byte, MaxAddrLen)
 	// read VER, NMETHODS, METHODS
 	if _, err := io.ReadFull(rw, buf[:2]); err != nil {
+		log.Logger.Warn("socks: handshake read first head error :%v", err)
 		return nil, err
 	}
 	nmethods := buf[1]
 	if _, err := io.ReadFull(rw, buf[:nmethods]); err != nil {
+		log.Logger.Warn("socks: handshake read nmethods error :%v", err)
 		return nil, err
 	}
 	// write VER METHOD
 	if _, err := rw.Write([]byte{5, 0}); err != nil {
+		log.Logger.Warn("socks: handshake write socks5 version error :%v", err)
 		return nil, err
 	}
 	// read VER CMD RSV ATYP DST.ADDR DST.PORT
 	if _, err := io.ReadFull(rw, buf[:3]); err != nil {
+		log.Logger.Warn("socks: handshake read second head error :%v", err)
 		return nil, err
 	}
 	cmd := buf[1]
@@ -304,6 +309,7 @@ func HandShake(rw io.ReadWriter) (Addr, error) {
 		listenAddr := ParseAddr(rw.(net.Conn).LocalAddr().String())
 		_, err = rw.Write(append([]byte{5, 0, 0}, listenAddr...)) // SOCKS v5, reply succeeded
 		if err != nil {
+			log.Logger.Warn("socks: handshake cmdudp write reply error :%v", err)
 			return nil, ErrCommandNotSupported
 		}
 		err = InfoUDPAssociate

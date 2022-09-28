@@ -3,11 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/shadowsocks/go-shadowsocks2/core"
 	"github.com/zyong/miniproxygo/m_debug"
 	"path"
 	"runtime"
-	"strings"
+	"time"
 )
 
 import (
@@ -25,20 +24,11 @@ var (
 	help        = flag.Bool("h", false, "to show help")
 	confRoot    = flag.String("c", "./conf", "root path of configuration")
 	logPath     = flag.String("l", "./log", "dir path of log")
-	server		= flag.String("server", "", "server listen address")
-	client		= flag.String("client", "", "client connect address")
-	cipher		= flag.String("cipher", "AEAD_CHACHA20_POLY1305", "available ciphers:" + strings.Join(core.ListCipher(), " "))
-	password	= flag.String("password", "", "password")
-	key			= flag.String("key", "", "base64 url-encode key (derive from password if empty)")
-	keygen		= flag.Int("keygen", 0, "generate a base64 url-encoded random key of given length in byte")
-	socks		= flag.String("socks", "", "(client-only) SOCKS listen address")
 	stdOut      = flag.Bool("s", false, "to show log in stdout")
-	showVersion = flag.Bool("v", false, "to show version of bfe")
-	showVerbose = flag.Bool("V", false, "to show verbose information about bfe")
+	showVersion = flag.Bool("v", false, "to show version of proxy")
+	showVerbose = flag.Bool("V", false, "to show verbose information about proxy")
 	debugLog    = flag.Bool("d", false, "to show debug log (otherwise >= info)")
 )
-
-var confpath = flag.String("confpath", "m_config/m_config-dev.yml", "m_server m_config file path")
 
 var version string
 
@@ -78,44 +68,23 @@ func main() {
 		m_util.AbnormalExit()
 	}
 
-	log.Logger.Info("miniproxy[version:%s] start", version)
+	log.Logger.Info("proxygo[version:%s] start", version)
 
-	// if client
-	if *client != "" {
-		// load client config
-		confPath := path.Join(*confRoot, "miniproxy-client.conf")
-		config, err = m_config.ConfigLoad(confPath, *confRoot, m_config.SetDefaultClientConfig)
+	// load server config
+	confPath := path.Join(*confRoot, "proxy.conf")
+	config, err = m_config.ConfigLoad(confPath, *confRoot, m_config.SetDefaultConfig)
 
-		if err != nil {
-			log.Logger.Error("main(): in Client ConfigLoad():%s", err.Error())
-			m_util.AbnormalExit()
-		}
-
-		// start and serve
-		if err = m_server.StartClient(config, version, *confRoot); err != nil {
-			log.Logger.Error("main(): server.StartUp(): %s", err.Error())
-		}
+	if err != nil {
+		log.Logger.Error("main(): in Server ConfigLoad():%s", err.Error())
+		m_util.AbnormalExit()
 	}
 
-	if *server != "" {
-		// load server config
-		confPath := path.Join(*confRoot, "miniproxy.conf")
-		config, err = m_config.ConfigLoad(confPath, *confRoot, m_config.SetDefaultServerConfig)
-
-		if err != nil {
-			log.Logger.Error("main(): in Server ConfigLoad():%s", err.Error())
-			m_util.AbnormalExit()
-		}
-
-		// start and serve
-		if err = m_server.StartServer(config, version, *confRoot); err != nil {
-			log.Logger.Error("main(): server.StartUp(): %s", err.Error())
-		}
+	// start and serve
+	if err = m_server.Start(config, version, *confRoot); err != nil {
+		log.Logger.Error("main(): server.StartUp(): %s", err.Error())
 	}
 
-
-
-
-
-
+	// waiting for logger finish jobs
+	time.Sleep(1 * time.Second)
+	log.Logger.Close()
 }

@@ -9,25 +9,24 @@ import (
 )
 
 type ConfigServer struct {
-	Port 	int
+	Local 		 bool
+	Port         int
 	RemoteServer string
 
-	Cipher	string
-	Key		string
+	Cipher   string
+	User     string
 	Password string
 
 	// settings of communicate with http client
-	ClientReadTimeout       int  // read timeout, in seconds
-	ClientWriteTimeout      int  // read timeout, in seconds
-	GracefulShutdownTimeout int  // graceful shutdown timeout, in seconds
+	ClientReadTimeout       int // read timeout, in seconds
+	ClientWriteTimeout      int // read timeout, in seconds
+	GracefulShutdownTimeout int // graceful shutdown timeout, in seconds
 
-	MaxIdle             int
+	MaxIdle int
 }
 
 type Conf struct {
 	Server   ConfigServer
-	Username string
-	Password string
 }
 
 func (cfg *ConfigServer) SetDefaultConfig() {
@@ -36,10 +35,7 @@ func (cfg *ConfigServer) SetDefaultConfig() {
 	cfg.GracefulShutdownTimeout = 10
 }
 
-func SetDefaultClientConfig(conf *Conf) {
-}
-
-func SetDefaultServerConfig(conf *Conf) {
+func SetDefaultConfig(conf *Conf) {
 	conf.Server.SetDefaultConfig()
 }
 
