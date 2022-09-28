@@ -30,7 +30,7 @@ var (
 	debugLog    = flag.Bool("d", false, "to show debug log (otherwise >= info)")
 )
 
-var version string
+var version string = "0.1"
 
 func main() {
 	var err error
@@ -62,13 +62,13 @@ func main() {
 	log4go.SetLogFormat(log4go.FORMAT_DEFAULT_WITH_PID)
 	log4go.SetSrcLineForBinLog(false)
 
-	err = log.Init("proxygo", logSwitch, *logPath, *stdOut, "midnight", 7)
+	err = log.Init("proxy", logSwitch, *logPath, *stdOut, "midnight", 7)
 	if err != nil {
-		fmt.Printf("proxygo: err in log.Init():%s\n", err.Error())
+		fmt.Printf("proxy: err in log.Init():%s\n", err.Error())
 		m_util.AbnormalExit()
 	}
 
-	log.Logger.Info("proxygo[version:%s] start", version)
+	log.Logger.Info("proxy[version:%s] start", version)
 
 	// load server config
 	confPath := path.Join(*confRoot, "proxy.conf")

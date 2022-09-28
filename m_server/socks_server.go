@@ -71,6 +71,13 @@ func (srv *Server) relay(left, right net.Conn) error {
 func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, getAddr func(net.Conn) (m_socks.Addr, error)) error {
 	var tempDelay time.Duration // how long to sleep on accept failure
 
+	l, err := net.Listen("tcp", srv.Addr)
+
+	if err != nil {
+		log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
+		return err
+	}
+
 	for {
 		// accept new connection
 		c, e := l.Accept()
@@ -99,10 +106,8 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 		// start go-routine for new connection
 		go func() {
 			defer c.Close()
-			// create data structure for new connection
-			sc := shadow(c)
 
-			tgt, err := getAddr(sc)
+			tgt, err := getAddr(c)
 
 			if err != nil {
 				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
@@ -114,13 +119,21 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 				return
 			}
 
-			rc, err := net.Dial("tcp", tgt.String())
+			rc, err := net.Dial("tcp", srv.Config.Server.RemoteServer)
 			if err != nil {
 				log.Logger.Warn("socks: failed to connect to target: %v", err)
 				return
 			}
 
 			defer rc.Close()
+
+			// create data structure for new connection
+			sc := shadow(c)
+
+			if _, err = rc.Write(tgt); err != nil {
+				log.Logger.Warn("socks: failed to send target address: %v", err)
+				return
+			}
 
 			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), tgt)
 			if err = srv.relay(sc, rc); err != nil {
@@ -134,6 +147,13 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 
 // Listen on addr for incoming connections.
 func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) error {
+	l, err := net.Listen("tcp", srv.Addr)
+
+	if err != nil {
+		log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
+		return err
+	}
+
 	for {
 		c, err := l.Accept()
 		if err != nil {

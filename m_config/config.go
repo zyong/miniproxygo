@@ -9,12 +9,13 @@ import (
 )
 
 type ConfigServer struct {
-	Local 		 bool
+	Local        bool
 	Port         int
 	RemoteServer string
+	MonitorPort  int
 
 	Cipher   string
-	User     string
+	Username string
 	Password string
 
 	// settings of communicate with http client
@@ -23,10 +24,11 @@ type ConfigServer struct {
 	GracefulShutdownTimeout int // graceful shutdown timeout, in seconds
 
 	MaxIdle int
+	MaxCpus int
 }
 
 type Conf struct {
-	Server   ConfigServer
+	Server ConfigServer
 }
 
 func (cfg *ConfigServer) SetDefaultConfig() {

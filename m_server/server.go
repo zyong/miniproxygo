@@ -3,6 +3,7 @@ package m_server
 import (
 	"fmt"
 	"github.com/baidu/go-lib/log"
+	"github.com/shadowsocks/go-shadowsocks2/core"
 	"github.com/zyong/miniproxygo/m_core"
 	"github.com/zyong/miniproxygo/m_socks"
 	"net"
@@ -58,11 +59,12 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 
 	s := NewServer(cfg, confRoot, version)
 
-	// initial Socks
-	if err = s.InitSocks(); err != nil {
-		log.Logger.Error("Start: InitSocks():%s", err.Error())
+	// 选择一个加密算法，可以不加密？和简单密码
+	ciph, err := core.PickCipher(s.Config.Server.Cipher, []byte{}, "password")
+	if err != nil {
 		return err
 	}
+	s.Cipher = ciph
 
 	serveChan := make(chan error)
 
