@@ -2,10 +2,6 @@ package m_server
 
 import (
 	"fmt"
-	"github.com/baidu/go-lib/log"
-	"github.com/shadowsocks/go-shadowsocks2/core"
-	"github.com/zyong/miniproxygo/m_core"
-	"github.com/zyong/miniproxygo/m_socks"
 	"net"
 	"os"
 	"sync"
@@ -13,12 +9,15 @@ import (
 )
 
 import (
+	"github.com/baidu/go-lib/log"
 	"github.com/zyong/miniproxygo/m_config"
+	"github.com/zyong/miniproxygo/m_core"
+	"github.com/zyong/miniproxygo/m_socks"
 )
 
 type Server struct {
-	Addr		string
-	Cipher		m_core.Cipher
+	Addr                    string
+	Cipher                  m_core.Cipher
 	ReadTimeout             time.Duration // maximum duration before timing out read of the request
 	WriteTimeout            time.Duration // maximum duration before timing out write of the response
 	TlsHandshakeTimeout     time.Duration // maximum duration before timing out handshake
@@ -27,12 +26,12 @@ type Server struct {
 	// CloseNotifyCh allow detecting when the server in graceful shutdown state
 	CloseNotifyCh chan bool
 
-	listener        net.Listener
+	listener net.Listener
 
-	connWaitGroup	sync.WaitGroup // waits for server conns to finish
+	connWaitGroup sync.WaitGroup // waits for server conns to finish
 
-	Config		m_config.Conf
-	ConfRoot	string
+	Config   m_config.Conf
+	ConfRoot string
 
 	Version string // version of bfe server
 
@@ -60,7 +59,7 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 	s := NewServer(cfg, confRoot, version)
 
 	// 选择一个加密算法，可以不加密？和简单密码
-	ciph, err := core.PickCipher(s.Config.Server.Cipher, []byte{}, "password")
+	ciph, err := m_core.PickCipher(s.Config.Server.Cipher, []byte{}, "password")
 	if err != nil {
 		return err
 	}
@@ -79,7 +78,6 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 			serveChan <- err
 		}()
 	}
-
 
 	err = <-serveChan
 	return err

@@ -2,6 +2,7 @@ package m_server
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -40,12 +41,12 @@ func (srv *Server) relay(left, right net.Conn) error {
 	go func() {
 		defer wg.Done()
 		_, err1 = io.Copy(right, left)
-		if (srv.ReadTimeout > 0) {
+		if srv.ReadTimeout > 0 {
 			right.SetReadDeadline(time.Now().Add(srv.ReadTimeout)) // unblock read on right
 		}
 	}()
 	_, err = io.Copy(left, right)
-	if (srv.WriteTimeout > 0) {
+	if srv.WriteTimeout > 0 {
 		left.SetReadDeadline(time.Now().Add(srv.WriteTimeout)) // unblock read on left
 	}
 	wg.Wait()
@@ -109,6 +110,7 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 
 			tgt, err := getAddr(c)
 
+			log.Logger.Info("socks: get target address: %s", fmt.Sprintf("%s", tgt))
 			if err != nil {
 				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
 
@@ -143,7 +145,6 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 		}()
 	}
 }
-
 
 // Listen on addr for incoming connections.
 func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) error {

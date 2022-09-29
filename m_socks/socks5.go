@@ -1,10 +1,13 @@
 package m_socks
 
 import (
-	"github.com/baidu/go-lib/log"
 	"io"
 	"net"
 	"strconv"
+)
+
+import (
+	"github.com/baidu/go-lib/log"
 )
 
 const (
@@ -76,7 +79,6 @@ type Error byte
 func (err Error) Error() string {
 	return "SOCKS error: " + strconv.Itoa(int(err))
 }
-
 
 // SOCKS errors as defined in RFC 1928 section 6.
 const (
@@ -150,7 +152,6 @@ type Datagram struct {
 
 // Addr represents a SOCKS address as defined in RFC 1928 section 5.
 type Addr []byte
-
 
 // String serializes SOCKS address a to string form.
 func (a Addr) String() string {
@@ -235,7 +236,6 @@ func readAddr(r io.Reader, b []byte) (Addr, error) {
 
 	return nil, ErrAddressNotSupported
 }
-
 
 // ReadAddr reads just enough bytes from r to get a valid Addr.
 func ReadAddr(r io.Reader) (Addr, error) {

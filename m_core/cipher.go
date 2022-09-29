@@ -3,12 +3,14 @@ package m_core
 import (
 	"crypto/md5"
 	"errors"
-	"github.com/zyong/miniproxygo/m_shadow"
 	"net"
 	"sort"
 	"strings"
 )
 
+import (
+	"github.com/zyong/miniproxygo/m_shadow"
+)
 
 type Cipher interface {
 	StreamConnCipher

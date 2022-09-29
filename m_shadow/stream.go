@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/rand"
-	"github.com/zyong/miniproxygo/m_internal"
 	"io"
 	"net"
+)
+
+import (
+	"github.com/zyong/miniproxygo/m_internal"
 )
 
 // payloadSizeMask is the maximum size of payload in bytes.
