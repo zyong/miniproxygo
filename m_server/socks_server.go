@@ -1,6 +1,7 @@
 package m_server
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -46,8 +47,8 @@ func (srv *Server) relay(left, right net.Conn) error {
 		}
 	}()
 	_, err = io.Copy(left, right)
-	if srv.WriteTimeout > 0 {
-		left.SetReadDeadline(time.Now().Add(srv.WriteTimeout)) // unblock read on left
+	if srv.ReadTimeout > 0 {
+		left.SetReadDeadline(time.Now().Add(srv.ReadTimeout)) // unblock read on left
 	}
 	wg.Wait()
 	if err1 != nil && !errors.Is(err1, os.ErrDeadlineExceeded) { // requires Go 1.15+
@@ -57,6 +58,45 @@ func (srv *Server) relay(left, right net.Conn) error {
 		return err
 	}
 	return nil
+}
+
+type corkedConn struct {
+	net.Conn
+	bufw   *bufio.Writer
+	corked bool
+	delay  time.Duration
+	err    error
+	lock   sync.Mutex
+	once   sync.Once
+}
+
+func timedCork(c net.Conn, d time.Duration, bufSize int) net.Conn {
+	return &corkedConn{
+		Conn:   c,
+		bufw:   bufio.NewWriterSize(c, bufSize),
+		corked: true,
+		delay:  d,
+	}
+}
+
+func (w *corkedConn) Write(p []byte) (int, error) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	if w.err != nil {
+		return 0, w.err
+	}
+	if w.corked {
+		w.once.Do(func() {
+			time.AfterFunc(w.delay, func() {
+				w.lock.Lock()
+				defer w.lock.Unlock()
+				w.corked = false
+				w.err = w.bufw.Flush()
+			})
+		})
+		return w.bufw.Write(p)
+	}
+	return w.Conn.Write(p)
 }
 
 // Serve accepts incoming connections on the Listener l, creating a
@@ -129,6 +169,8 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 
 			defer rc.Close()
 
+			rc = timedCork(rc, 10*time.Millisecond, 1280)
+
 			// create data structure for new connection
 			rc = shadow(rc)
 
@@ -164,6 +206,8 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 
 		go func() {
 			defer c.Close()
+
+			c = timedCork(c, 10*time.Millisecond, 1280)
 
 			sc := shadow(c)
 
