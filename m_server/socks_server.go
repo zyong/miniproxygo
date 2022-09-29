@@ -121,7 +121,7 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 
 			rc, err := net.Dial("tcp", srv.Config.Server.RemoteServer)
 			if err != nil {
-				log.Logger.Warn("socks: failed to connect to target: %v", err)
+				log.Logger.Warn("socks: failed to connect to RemoteServer: %v", err)
 				return
 			}
 
