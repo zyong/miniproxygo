@@ -3,12 +3,13 @@ module github.com/zyong/miniproxygo
 go 1.16
 
 require (
-	github.com/kavu/go_reuseport v1.5.0
-	github.com/kr/pretty v0.1.0 // indirect
+	github.com/baidu/go-lib v0.0.0-20210902034828-42829d4bdecd
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
-	github.com/panjf2000/ants/v2 v2.4.6
-	github.com/stretchr/testify v1.7.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
-	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/riobard/go-bloom v0.0.0-20200614022211-cdc8013cb5b3
+	github.com/shadowsocks/go-shadowsocks2 v0.1.5
+	github.com/txthinking/runnergroup v0.0.0-20220212043759-8da8edb7dae8
+	golang.org/x/crypto v0.0.0-20220924013350-4ba4fb4dd9e7
+	gopkg.in/gcfg.v1 v1.2.3
+	gopkg.in/warnings.v0 v0.1.2 // indirect
 )

@@ -1,4 +1,4 @@
-package miniproxygo
+package m_util
 
 import (
 	"math/rand"
@@ -33,3 +33,4 @@ func RandStringBytesMaskImprSrc(n int) string {
 
 	return string(b)
 }
+

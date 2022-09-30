@@ -1,5 +1,0 @@
-formatter: "%{shortfile} %{shortfunc} ▶ %{level:.4s} %{message}"
-logFile: "proxy.log"
-path: "logs/"
-filePattern: "proxy-yyyy-MM-dd-%H.log"
-level: "INFO"
