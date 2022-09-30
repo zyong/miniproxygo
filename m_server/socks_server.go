@@ -120,6 +120,8 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 		return err
 	}
 
+	var start time.Time
+
 	for {
 		// accept new connection
 		c, e := l.Accept()
@@ -145,6 +147,8 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 			return e
 		}
 
+		atomic.AddInt64(&srv.stats.ReqNum, 1)
+
 		// start go-routine for new connection
 		go func() {
 			defer c.Close()
@@ -162,11 +166,14 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 				return
 			}
 
+			start = time.Now()
 			rc, err := net.Dial("tcp", srv.Config.Server.RemoteServer)
 			if err != nil {
 				log.Logger.Warn("socks: failed to connect to RemoteServer: %v", err)
 				return
 			}
+			log.Logger.Info("socks: proxy %s <-> %s, connect elapsed time:%fs, total req num %d",
+				c.RemoteAddr(), rc.RemoteAddr(), time.Since(start).Seconds(), srv.stats.ReqNum)
 
 			defer rc.Close()
 
@@ -216,8 +223,9 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 			sc := shadow(c)
 
 			start = time.Now()
+			// todo add user certification
 			tgt, err := m_socks.ReadAddr(sc)
-			log.Logger.Info("socks: server read addr elapsed time :%dms", time.Since(start)/1000)
+			log.Logger.Info("socks: server read addr elapsed time :%fs", time.Since(start)/1000)
 
 			if err != nil {
 				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
@@ -231,6 +239,7 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 			}
 
 			start = time.Now()
+			// # todo add dns resolve module
 			rc, err := net.Dial("tcp", tgt.String())
 			if err != nil {
 				log.Logger.Warn("socks: failed to connect to target: %v", err)
@@ -238,8 +247,8 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 			}
 			atomic.AddInt64(&srv.stats.ReqNum, 1)
 
-			log.Logger.Info("socks: proxy %s <-> %s, connect elapsed time:%dms, total req num %d",
-				c.RemoteAddr(), rc.RemoteAddr(), time.Since(start)/1000, srv.stats.ReqNum)
+			log.Logger.Info("socks: proxy %s <-> %s, connect elapsed time:%fs, total req num %d",
+				c.RemoteAddr(), rc.RemoteAddr(), time.Since(start).Seconds(), srv.stats.ReqNum)
 
 
 			defer rc.Close()
