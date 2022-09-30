@@ -217,7 +217,7 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 
 			start = time.Now()
 			tgt, err := m_socks.ReadAddr(sc)
-			log.Logger.Info("socks: server read addr elapsed time :%ds", time.Since(start))
+			log.Logger.Info("socks: server read addr elapsed time :%dms", time.Since(start)/1000)
 
 			if err != nil {
 				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
@@ -238,8 +238,8 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 			}
 			atomic.AddInt64(&srv.stats.ReqNum, 1)
 
-			log.Logger.Info("socks: proxy %s <-> %s, connect elapsed time:%ds, total req num %d",
-				c.RemoteAddr(), rc.RemoteAddr(), time.Since(start), srv.stats.ReqNum)
+			log.Logger.Info("socks: proxy %s <-> %s, connect elapsed time:%dms, total req num %d",
+				c.RemoteAddr(), rc.RemoteAddr(), time.Since(start)/1000, srv.stats.ReqNum)
 
 
 			defer rc.Close()
