@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/zyong/miniproxygo/m_debug"
 	"path"
 	"runtime"
 	"time"
@@ -16,6 +15,7 @@ import (
 
 import (
 	"github.com/zyong/miniproxygo/m_config"
+	"github.com/zyong/miniproxygo/m_debug"
 	"github.com/zyong/miniproxygo/m_server"
 	"github.com/zyong/miniproxygo/m_util"
 )
