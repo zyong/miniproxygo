@@ -224,7 +224,7 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 			}
 
 			rc, err := net.Dial("tcp", tgt.String())
-			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), tgt)
+			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), rc.RemoteAddr())
 
 			if err != nil {
 				log.Logger.Warn("socks: failed to connect to target: %v", err)
