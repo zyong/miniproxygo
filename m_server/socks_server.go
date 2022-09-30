@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -197,6 +198,8 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 		return err
 	}
 
+	var start time.Time
+
 	for {
 		c, err := l.Accept()
 		if err != nil {
@@ -204,6 +207,7 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 			continue
 		}
 
+		atomic.AddInt64(&srv.stats.ReqNum, 1)
 		go func() {
 			defer c.Close()
 
@@ -211,7 +215,10 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 
 			sc := shadow(c)
 
+			start = time.Now()
 			tgt, err := m_socks.ReadAddr(sc)
+			log.Logger.Info("socks: server read addr elapsed time :%ds", time.Since(start))
+
 			if err != nil {
 				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
 				// drain c to avoid leaking server behavioral features
@@ -223,13 +230,18 @@ func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) e
 				return
 			}
 
+			start = time.Now()
 			rc, err := net.Dial("tcp", tgt.String())
-			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), rc.RemoteAddr())
-
 			if err != nil {
 				log.Logger.Warn("socks: failed to connect to target: %v", err)
 				return
 			}
+			atomic.AddInt64(&srv.stats.ReqNum, 1)
+
+			log.Logger.Info("socks: proxy %s <-> %s, connect elapsed time:%ds, total req num %d",
+				c.RemoteAddr(), rc.RemoteAddr(), time.Since(start), srv.stats.ReqNum)
+
+
 			defer rc.Close()
 
 			if err = srv.relay(sc, rc); err != nil {

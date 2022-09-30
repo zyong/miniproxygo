@@ -15,6 +15,11 @@ import (
 	"github.com/zyong/miniproxygo/m_socks"
 )
 
+type Stats struct {
+	ReqNum	int64
+	CoNum	int64
+}
+
 type Server struct {
 	Addr                    string
 	Cipher                  m_core.Cipher
@@ -33,6 +38,7 @@ type Server struct {
 	Config   m_config.Conf
 	ConfRoot string
 
+	stats	Stats
 	Version string // version of bfe server
 
 }
@@ -47,6 +53,8 @@ func NewServer(cfg m_config.Conf, confRoot string, version string) *Server {
 
 	s.CloseNotifyCh = make(chan bool)
 
+	s.stats.ReqNum = 0
+	s.stats.CoNum = 0
 	s.Version = version
 
 	return s
