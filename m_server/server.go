@@ -16,8 +16,15 @@ import (
 )
 
 type Stats struct {
-	ReqNum	int64
-	CoNum	int64
+	ReqNum int64
+	CoNum  int64
+	Users  int32
+}
+
+type client struct {
+	cid      uint64
+	username string
+	conn     net.Conn
 }
 
 type Server struct {
@@ -33,12 +40,15 @@ type Server struct {
 
 	listener net.Listener
 
+	gcid    uint64
+	clients map[uint64]*client
+
 	connWaitGroup sync.WaitGroup // waits for server conns to finish
 
 	Config   m_config.Conf
 	ConfRoot string
 
-	stats	Stats
+	stats   Stats
 	Version string // version of bfe server
 
 }

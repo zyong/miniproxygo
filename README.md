@@ -7,7 +7,7 @@ To install, run
 
 Build
 
-    $ go install github.com/zyong/miniproxygo/miniproxy
+    $ go install github.com/zyong/miniproxygo@latest
 
 You will now find a `miniproxy` binary in your `$GOPATH/bin` directory.
 
