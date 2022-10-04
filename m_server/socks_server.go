@@ -151,7 +151,10 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 
 		// start go-routine for new connection
 		go func() {
-			defer c.Close()
+			defer func() {
+				c.Close()
+				atomic.AddInt64(&srv.stats.ReqNum, -1)
+			}()
 
 			tgt, err := getAddr(c)
 

@@ -1,8 +1,8 @@
 package m_internal
 
 import (
-"hash/fnv"
-"sync"
+	"hash/fnv"
+	"sync"
 )
 
 import (

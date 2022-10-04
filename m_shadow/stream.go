@@ -141,6 +141,7 @@ func (r *reader) Read(b []byte) (int, error) {
 	}
 
 	n, err := r.read()
+	// 实际拷贝数量和读取到的数量不一致
 	m := copy(b, r.buf[:n])
 	if m < n { // insufficient len(b), keep leftover for next read
 		r.leftover = r.buf[m:n]
@@ -203,7 +204,9 @@ type streamConn struct {
 }
 
 func (c *streamConn) initReader() error {
+	// make byte array by salt size
 	salt := make([]byte, c.SaltSize())
+	// ReadFull exactly read byte array in salt size
 	if _, err := io.ReadFull(c.Conn, salt); err != nil {
 		return err
 	}
@@ -212,10 +215,12 @@ func (c *streamConn) initReader() error {
 		return err
 	}
 
+	// 通过bloomfilter 检查
 	if m_internal.CheckSalt(salt) {
 		return ErrRepeatedSalt
 	}
 
+	// 通过将对称加解密算法和套接字绑定
 	c.r = newReader(c.Conn, aead)
 	return nil
 }
@@ -247,6 +252,7 @@ func (c *streamConn) initWriter() error {
 	if err != nil {
 		return err
 	}
+	// write key to dst
 	_, err = c.Conn.Write(salt)
 	if err != nil {
 		return err
@@ -275,4 +281,6 @@ func (c *streamConn) ReadFrom(r io.Reader) (int64, error) {
 }
 
 // NewConn wraps a stream-oriented net.Conn with cipher.
-func NewConn(c net.Conn, ciph Cipher) net.Conn { return &streamConn{Conn: c, Cipher: ciph} }
+func NewConn(c net.Conn, ciph Cipher) net.Conn {
+	return &streamConn{Conn: c, Cipher: ciph}
+}

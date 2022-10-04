@@ -18,7 +18,9 @@ var ErrRepeatedSalt = errors.New("repeated salt detected")
 type Cipher interface {
 	KeySize() int
 	SaltSize() int
+	// generate encryption funciton
 	Encrypter(salt []byte) (cipher.AEAD, error)
+	// generate decryption function
 	Decrypter(salt []byte) (cipher.AEAD, error)
 }
 
@@ -49,7 +51,9 @@ func (a *metaCipher) SaltSize() int {
 }
 func (a *metaCipher) Encrypter(salt []byte) (cipher.AEAD, error) {
 	subkey := make([]byte, a.KeySize())
+	// 通过kdf 算出更好的key,并写入到subkey
 	hkdfSHA1(a.psk, salt, []byte("ss-subkey"), subkey)
+	// 构建AEAD需要的实例
 	return a.makeAEAD(subkey)
 }
 func (a *metaCipher) Decrypter(salt []byte) (cipher.AEAD, error) {
