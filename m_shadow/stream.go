@@ -46,6 +46,9 @@ func (w *writer) Write(b []byte) (int, error) {
 func (w *writer) ReadFrom(r io.Reader) (n int64, err error) {
 	for {
 		buf := w.buf
+		// 空出来的两个字节是留给写数据长度的
+		// Overhead 给出plaintext和ciphertext的长度差
+		// payloadSizeMask 是最大负载字节数
 		payloadBuf := buf[2+w.Overhead() : 2+w.Overhead()+payloadSizeMask]
 		nr, er := r.Read(payloadBuf)
 
@@ -53,7 +56,10 @@ func (w *writer) ReadFrom(r io.Reader) (n int64, err error) {
 			n += int64(nr)
 			buf = buf[:2+w.Overhead()+nr+w.Overhead()]
 			payloadBuf = payloadBuf[:nr]
+			// 填入空出的两个字节
 			buf[0], buf[1] = byte(nr>>8), byte(nr) // big-endian payload size
+			// 产生加密数据，使用buf变量存储加密数据
+			// nonce是NonceSize的随机字节数组
 			w.Seal(buf[:0], w.nonce, buf[:2], nil)
 			increment(w.nonce)
 
@@ -107,7 +113,12 @@ func (r *reader) read() (int, error) {
 		return 0, err
 	}
 
+	// 解密buf， 将结果写入buf
 	_, err = r.Open(buf[:0], r.nonce, buf, nil)
+	// 初始nonce为全0byte数组
+	// increment是每次对第一个字节加1，如果第一个字节不等于1了就返回
+	// 如果第一个字节再次等于0，就对第二个字节加1
+	// littleEndian编码 左边最小
 	increment(r.nonce)
 	if err != nil {
 		return 0, err
@@ -187,6 +198,7 @@ func (r *reader) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 // increment little-endian encoded unsigned integer b. Wrap around on overflow.
+// 相当于对4个字节的无符号整数累加1
 func increment(b []byte) {
 	for i := range b {
 		b[i]++
@@ -253,6 +265,7 @@ func (c *streamConn) initWriter() error {
 		return err
 	}
 	// write key to dst
+	// salt is key
 	_, err = c.Conn.Write(salt)
 	if err != nil {
 		return err
