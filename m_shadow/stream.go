@@ -47,16 +47,18 @@ func (w *writer) ReadFrom(r io.Reader) (n int64, err error) {
 	for {
 		buf := w.buf
 		// 空出来的两个字节是留给写数据长度的
-		// Overhead 给出plaintext和ciphertext的长度差
-		// payloadSizeMask 是最大负载字节数
+		// Overhead 给出plaintext和ciphertext的最大长度差
+		// payloadSizeMask 是负载字节数
 		payloadBuf := buf[2+w.Overhead() : 2+w.Overhead()+payloadSizeMask]
+		// nr实际读取到的字节数
 		nr, er := r.Read(payloadBuf)
 
 		if nr > 0 {
 			n += int64(nr)
+			// 计算实际有数据的bytes数组
 			buf = buf[:2+w.Overhead()+nr+w.Overhead()]
 			payloadBuf = payloadBuf[:nr]
-			// 填入空出的两个字节
+			// 填入空出的两个字节，写入实际数据长度
 			buf[0], buf[1] = byte(nr>>8), byte(nr) // big-endian payload size
 			// 产生加密数据，使用buf变量存储加密数据
 			// nonce是NonceSize的随机字节数组

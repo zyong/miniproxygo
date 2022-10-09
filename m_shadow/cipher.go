@@ -49,6 +49,8 @@ func (a *metaCipher) SaltSize() int {
 	}
 	return 16
 }
+
+// 生成一个加解密实例
 func (a *metaCipher) Encrypter(salt []byte) (cipher.AEAD, error) {
 	subkey := make([]byte, a.KeySize())
 	// 通过kdf 算出更好的key,并写入到subkey
@@ -56,6 +58,8 @@ func (a *metaCipher) Encrypter(salt []byte) (cipher.AEAD, error) {
 	// 构建AEAD需要的实例
 	return a.makeAEAD(subkey)
 }
+
+// 生成一个加解密实例
 func (a *metaCipher) Decrypter(salt []byte) (cipher.AEAD, error) {
 	subkey := make([]byte, a.KeySize())
 	hkdfSHA1(a.psk, salt, []byte("ss-subkey"), subkey)

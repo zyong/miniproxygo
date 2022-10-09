@@ -86,6 +86,7 @@ func PickCipher(name string, key []byte, password string) (Cipher, error) {
 
 type aeadCipher struct{ m_shadow.Cipher }
 
+// 通过connection参数包装一个带加解密功能的conn
 func (aead *aeadCipher) StreamConn(c net.Conn) net.Conn {
 	return m_shadow.NewConn(c, aead)
 }

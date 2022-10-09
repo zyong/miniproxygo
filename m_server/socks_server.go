@@ -184,6 +184,7 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 			rc = timedCork(rc, 10*time.Millisecond, 1280)
 
 			// create data structure for new connection
+			// create stream connect instance
 			rc = shadow(rc)
 
 			if _, err = rc.Write(tgt); err != nil {
