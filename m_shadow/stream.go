@@ -59,6 +59,8 @@ func (w *writer) ReadFrom(r io.Reader) (n int64, err error) {
 			buf = buf[:2+w.Overhead()+nr+w.Overhead()]
 			payloadBuf = payloadBuf[:nr]
 			// 填入空出的两个字节，写入实际数据长度
+			// 32位整形数，但是实际使用不超过16位，所以取两个字节
+			// 高位在前，低位在后
 			buf[0], buf[1] = byte(nr>>8), byte(nr) // big-endian payload size
 			// 产生加密数据，使用buf变量存储加密数据
 			// nonce是NonceSize的随机字节数组
