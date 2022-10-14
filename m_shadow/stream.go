@@ -13,6 +13,7 @@ import (
 )
 
 // payloadSizeMask is the maximum size of payload in bytes.
+// 2^14-1， 加密内容的长度为16的整数倍
 const payloadSizeMask = 0x3FFF // 16*1024 - 1
 
 type writer struct {
@@ -43,6 +44,12 @@ func (w *writer) Write(b []byte) (int, error) {
 // ReadFrom reads from the given io.Reader until EOF or error, encrypts and
 // writes to the embedded io.Writer. Returns number of bytes read from r and
 // any error encountered.
+
+// 分组加密算法
+// AES属于分组加密算法，算法规定需要将明文划分成组，每组的数据长度位128位。而密钥长度可以是128位、192位、256位。
+// Overhead位16字节，正好是128位一组的长度
+// https://blog.csdn.net/CAUC_learner/article/details/125652782
+// https://www.bilibili.com/video/BV1i341187fK/?spm_id_from=333.337.search-card.all.click&vd_source=813db69fade38448cfa7c79339b60107
 func (w *writer) ReadFrom(r io.Reader) (n int64, err error) {
 	for {
 		buf := w.buf
@@ -57,6 +64,7 @@ func (w *writer) ReadFrom(r io.Reader) (n int64, err error) {
 			n += int64(nr)
 			// 计算实际有数据的bytes数组
 			buf = buf[:2+w.Overhead()+nr+w.Overhead()]
+			// 计算获得实际的字节数组
 			payloadBuf = payloadBuf[:nr]
 			// 填入空出的两个字节，写入实际数据长度
 			// 32位整形数，但是实际使用不超过16位，所以取两个字节
@@ -64,9 +72,11 @@ func (w *writer) ReadFrom(r io.Reader) (n int64, err error) {
 			buf[0], buf[1] = byte(nr>>8), byte(nr) // big-endian payload size
 			// 产生加密数据，使用buf变量存储加密数据
 			// nonce是NonceSize的随机字节数组
+			// buf的前两个字节是payload的大小
 			w.Seal(buf[:0], w.nonce, buf[:2], nil)
 			increment(w.nonce)
 
+			// 计算payload的密文
 			w.Seal(payloadBuf[:0], w.nonce, payloadBuf, nil)
 			increment(w.nonce)
 
@@ -111,6 +121,7 @@ func newReader(r io.Reader, aead cipher.AEAD) *reader {
 // read and decrypt a record into the internal buffer. Return decrypted payload length and any error encountered.
 func (r *reader) read() (int, error) {
 	// decrypt payload size
+	// 只截取头部两个字节, Overhead默认16
 	buf := r.buf[:2+r.Overhead()]
 	_, err := io.ReadFull(r.Reader, buf)
 	if err != nil {
@@ -118,7 +129,9 @@ func (r *reader) read() (int, error) {
 	}
 
 	// 解密buf， 将结果写入buf
+	// 解密的结果是payload的长度
 	_, err = r.Open(buf[:0], r.nonce, buf, nil)
+
 	// 初始nonce为全0byte数组
 	// increment是每次对第一个字节加1，如果第一个字节不等于1了就返回
 	// 如果第一个字节再次等于0，就对第二个字节加1
@@ -128,9 +141,11 @@ func (r *reader) read() (int, error) {
 		return 0, err
 	}
 
+	// 2^14 为 14位，数据大小为两字节，证明数据大小不会超过2^14
 	size := (int(buf[0])<<8 + int(buf[1])) & payloadSizeMask
 
 	// decrypt payload
+	// Overhead
 	buf = r.buf[:size+r.Overhead()]
 	_, err = io.ReadFull(r.Reader, buf)
 	if err != nil {
@@ -280,6 +295,7 @@ func (c *streamConn) initWriter() error {
 }
 
 func (c *streamConn) Write(b []byte) (int, error) {
+	// 先写入初始化加密实例，然后写入salt给对方，salt就是加解密的key
 	if c.w == nil {
 		if err := c.initWriter(); err != nil {
 			return 0, err
