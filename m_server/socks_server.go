@@ -3,7 +3,6 @@ package m_server
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -110,7 +109,7 @@ func (w *corkedConn) Write(p []byte) (int, error) {
 //
 // Return
 //     - err: error
-func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, getAddr func(net.Conn) (m_socks.Addr, error)) error {
+func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.Conn) (m_socks.Addr, error)) error {
 	var tempDelay time.Duration // how long to sleep on accept failure
 
 	l, err := net.Listen("tcp", srv.Addr)
@@ -158,7 +157,7 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 
 			tgt, err := getAddr(c)
 
-			log.Logger.Info("socks: get target address: %s", fmt.Sprintf("%s", tgt))
+			log.Logger.Info("socks: get target address: %s", string(tgt))
 			if err != nil {
 				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
 
@@ -202,7 +201,7 @@ func (srv *Server) ServeLocal(l net.Listener, shadow func(net.Conn) net.Conn, ge
 }
 
 // Listen on addr for incoming connections.
-func (srv *Server) ServeServer(l net.Listener, shadow func(net.Conn) net.Conn) error {
+func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 	l, err := net.Listen("tcp", srv.Addr)
 
 	if err != nil {

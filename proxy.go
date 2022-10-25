@@ -26,7 +26,6 @@ var (
 	logPath     = flag.String("l", "./log", "dir path of log")
 	stdOut      = flag.Bool("s", false, "to show log in stdout")
 	showVersion = flag.Bool("v", false, "to show version of proxy")
-	showVerbose = flag.Bool("V", false, "to show verbose information about proxy")
 	debugLog    = flag.Bool("d", false, "to show debug log (otherwise >= info)")
 )
 
@@ -42,7 +41,7 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
-	if *showVerbose {
+	if *showVersion {
 		fmt.Printf("go version: %s\n", runtime.Version())
 		return
 	}

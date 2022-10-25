@@ -104,14 +104,14 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 func (s *Server) ServeSocksLocal() (err error) {
 	log.Logger.Info("Start: SOCKS proxy local %s <-> %s", s.Addr, s.Config.Server.RemoteServer)
 	shadow := s.Cipher.StreamConn
-	return s.ServeLocal(s.listener, shadow, func(c net.Conn) (m_socks.Addr, error) { return m_socks.HandShake(c) })
+	return s.ServeLocal(shadow, func(c net.Conn) (m_socks.Addr, error) { return m_socks.HandShake(c) })
 }
 
 // newConn create a conn to serve client request
 func (s *Server) ServeSocksServer() (err error) {
 	log.Logger.Info("Start: SOCKS proxy server %s", s.Addr)
 	shadow := s.Cipher.StreamConn
-	return s.ServeServer(s.listener, shadow)
+	return s.ServeServer(shadow)
 }
 
 // InitConfig set some parameter based on config.

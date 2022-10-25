@@ -1,4 +1,5 @@
 # init project path
+NAME=miniproxygo
 WORKROOT := $(shell pwd)
 OUTDIR   := $(WORKROOT)/output
 OS		 := $(shell go env GOOS)
@@ -45,22 +46,11 @@ define INSTALL_PKG
 	@echo $(1) installed
 endef
 
-define PIP_INSTALL_PKG
-	@echo installing $(1)
-	$(PIPINSTALL) $(1)
-	@echo $(1) installed
-endef
-
 # make, make all
 all: prepare compile package
 
 # make, make strip
 strip: prepare compile-strip package
-
-# make prepare, download dependencies
-prepare: prepare-dep prepare-gen
-prepare-dep:
-	$(call INSTALL_PKG, goyacc, golang.org/x/tools/cmd/goyacc)
 
 # make compile, go build
 compile: test build
@@ -80,28 +70,16 @@ else
 	$(GOBUILD) -ldflags "-X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT) -extldflags=-static -s -w"
 endif
 
-# make test, test your code
-test: test-case vet-case
-test-case:
-	$(GOTEST) -cover ./...
-vet-case:
-	${GOVET} ./...
-
-# make coverage for codecov
-coverage:
-	echo -n > coverage.txt
-	for pkg in $(M_PKGS) ; do $(GOTEST) -coverprofile=profile.out -covermode=atomic $${pkg} && cat profile.out >> coverage.txt; done
 
 # make package
 package:
 	mkdir -p $(OUTDIR)/bin
-	mv miniproxy  $(OUTDIR)/bin
+	mv $(NAME) $(OUTDIR)/bin/proxy
 	cp -r conf $(OUTDIR)
 
 # make deps
 deps:
 	$(call PIP_INSTALL_PKG, pre-commit)
-	$(call INSTALL_PKG, goyacc, golang.org/x/tools/cmd/goyacc)
 	$(call INSTALL_PKG, staticcheck, honnef.co/go/tools/cmd/staticcheck)
 	$(call INSTALL_PKG, license-eye, github.com/apache/skywalking-eyes/cmd/license-eye@latest)
 
@@ -112,15 +90,8 @@ precommit:
 
 # make check
 check:
+	$(GO) get honnef.co/go/tools/cmd/staticcheck
 	$(STATICCHECK) ./...
-
-# make license-check, check code file's license declaration
-license-check:
-	$(LICENSEEYE) header check
-
-# make license-fix, fix code file's license declaration
-license-fix:
-	$(LICENSEEYE) header fix
 
 # make clean
 clean:
