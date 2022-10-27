@@ -238,6 +238,7 @@ func (c *streamConn) initReader() error {
 	// make byte array by salt size
 	salt := make([]byte, c.SaltSize())
 	// ReadFull exactly read byte array in salt size
+	// 第一次读取，获取salt数据，这个没有做加密
 	if _, err := io.ReadFull(c.Conn, salt); err != nil {
 		return err
 	}
@@ -275,20 +276,29 @@ func (c *streamConn) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (c *streamConn) initWriter() error {
+	// 第一次产生随机salt， saltsize就是psk的length
 	salt := make([]byte, c.SaltSize())
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
 		return err
 	}
+
+	// 生成一个aead实例
 	aead, err := c.Encrypter(salt)
 	if err != nil {
 		return err
 	}
+
 	// write key to dst
 	// salt is key
+	// 告知对方真实的salt，
+	// 第一次写入数据没有做加密，对方读取的时候也就不做解密
+	// todo 准备写入username和password数据
 	_, err = c.Conn.Write(salt)
 	if err != nil {
 		return err
 	}
+
+	// 将salt记录到bloom过滤器
 	m_internal.AddSalt(salt)
 	c.w = newWriter(c.Conn, aead)
 	return nil

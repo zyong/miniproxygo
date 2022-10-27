@@ -70,7 +70,7 @@ func PickCipher(name string, key []byte, password string) (Cipher, error) {
 	}
 
 	if choice, ok := aeadList[name]; ok {
-		//密码为空的情况下生成一个新的key
+		//命令行传参key为空的情况下，通过password生成一个新的key
 		if len(key) == 0 {
 			key = kdf(password, choice.KeySize)
 		}
@@ -87,6 +87,8 @@ func PickCipher(name string, key []byte, password string) (Cipher, error) {
 type aeadCipher struct{ m_shadow.Cipher }
 
 // 通过connection参数包装一个带加解密功能的conn
+// serverlocal中传入的是streamconn 函数
+// 本函数带的参数是原始的net.Conn实例
 func (aead *aeadCipher) StreamConn(c net.Conn) net.Conn {
 	return m_shadow.NewConn(c, aead)
 }

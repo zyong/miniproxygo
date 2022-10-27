@@ -52,10 +52,15 @@ func (a *metaCipher) SaltSize() int {
 
 // 生成一个加解密实例
 func (a *metaCipher) Encrypter(salt []byte) (cipher.AEAD, error) {
+	// 以psk的长度来生成hkdf key
 	subkey := make([]byte, a.KeySize())
+	// 通过psk 来源于命令行参数 或 password生成
+	// salt 来源于rand
+	// subkey 通过hkdf
 	// 通过kdf 算出更好的key,并写入到subkey
 	hkdfSHA1(a.psk, salt, []byte("ss-subkey"), subkey)
 	// 构建AEAD需要的实例
+	// 通过subkey生产aead实例
 	return a.makeAEAD(subkey)
 }
 
