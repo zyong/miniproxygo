@@ -1,5 +1,5 @@
 # init project path
-NAME=miniproxygo
+NAME=proxy
 WORKROOT := $(shell pwd)
 OUTDIR   := $(WORKROOT)/output
 OS		 := $(shell go env GOOS)
@@ -10,7 +10,7 @@ export GO111MODULE := on
 
 # init command params
 GO           := go
-GOBUILD      := $(GO) build
+GOBUILD      := CGO_ENABLED=0 $(GO) build
 GOTEST       := $(GO) test
 GOVET        := $(GO) vet
 GOGET        := $(GO) get
@@ -53,28 +53,22 @@ all: prepare compile package
 strip: prepare compile-strip package
 
 # make compile, go build
-compile: test build
-build:
-ifeq ($(OS),darwin)
-	$(GOBUILD) -ldflags "-X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)"
-else
-	$(GOBUILD) -ldflags "-X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT) -extldflags=-static"
-endif
+compile: test linux-amd64 linux-arm64 macos-amd64 macos-arm64
+linux-amd64:
+	GOARCH=amd64 GOOS=linux $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
 
-# make compile-strip, go build without symbols and DWARFs
-compile-strip: test build-strip
-build-strip:
-ifeq ($(OS),darwin)
-	$(GOBUILD) -ldflags "-X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT) -s -w"
-else
-	$(GOBUILD) -ldflags "-X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT) -extldflags=-static -s -w"
-endif
+linux-arm64:
+	GOARCH=arm64 GOOS=linux $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
+
+macos-amd64:
+	GOARCH=amd64 GOOS=linux $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
+
+macos-arm64:
+	GOARCH=arm64 GOOS=linux $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
 
 
 # make package
 package:
-	mkdir -p $(OUTDIR)/bin
-	mv $(NAME) $(OUTDIR)/bin/proxy
 	cp -r conf $(OUTDIR)
 
 # make deps
