@@ -61,10 +61,10 @@ linux-arm64:
 	GOARCH=arm64 GOOS=linux $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
 
 macos-amd64:
-	GOARCH=amd64 GOOS=linux $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
+	GOARCH=amd64 GOOS=darwin $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
 
 macos-arm64:
-	GOARCH=arm64 GOOS=linux $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
+	GOARCH=arm64 GOOS=darwin $(GOBUILD) -ldflags "-w -s -X main.version=$(M_VERSION) -X main.commit=$(GIT_COMMIT)" -o $(OUTDIR)/bin/$(NAME)-$@
 
 
 # make package

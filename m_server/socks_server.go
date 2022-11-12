@@ -43,12 +43,12 @@ func (srv *Server) relay(left, right net.Conn) error {
 		defer wg.Done()
 		_, err1 = io.Copy(right, left)
 		if srv.ReadTimeout > 0 {
-			right.SetReadDeadline(time.Now().Add(srv.ReadTimeout)) // unblock read on right
+			_ = right.SetReadDeadline(time.Now().Add(srv.ReadTimeout)) // unblock read on right
 		}
 	}()
 	_, err = io.Copy(left, right)
 	if srv.ReadTimeout > 0 {
-		left.SetReadDeadline(time.Now().Add(srv.ReadTimeout)) // unblock read on left
+		_ = left.SetReadDeadline(time.Now().Add(srv.ReadTimeout)) // unblock read on left
 	}
 	wg.Wait()
 	if err1 != nil && !errors.Is(err1, os.ErrDeadlineExceeded) { // requires Go 1.15+
@@ -115,7 +115,7 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 	l, err := net.Listen("tcp", srv.Addr)
 
 	if err != nil {
-		log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
+		_ = log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
 		return err
 	}
 
@@ -132,7 +132,7 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 			if ne, ok := e.(net.Error); ok && ne.Temporary() {
 				tempDelay = delayCalc(tempDelay)
 
-				log.Logger.Error("socks: Accept error: %v; retrying in %v", e, tempDelay)
+				_ = log.Logger.Error("socks: Accept error: %v; retrying in %v", e, tempDelay)
 				time.Sleep(tempDelay)
 				continue
 			}
@@ -151,7 +151,7 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 		// start go-routine for new connection
 		go func() {
 			defer func() {
-				c.Close()
+				_ = c.Close()
 				atomic.AddInt64(&srv.stats.ReqNum, -1)
 			}()
 
@@ -159,11 +159,11 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 
 			log.Logger.Info("socks: get target address: %s", string(tgt))
 			if err != nil {
-				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
+				_ = log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
 
 				_, err = io.Copy(ioutil.Discard, c)
 				if err != nil {
-					log.Logger.Warn("socks: failed to discard error: %v", err)
+					_ = log.Logger.Warn("socks: failed to discard error: %v", err)
 				}
 				return
 			}
@@ -172,7 +172,7 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 			// todo add concurrent pool
 			rc, err := net.Dial("tcp", srv.Config.Server.RemoteServer)
 			if err != nil {
-				log.Logger.Warn("socks: failed to connect to RemoteServer: %v", err)
+				_ = log.Logger.Warn("socks: failed to connect to RemoteServer: %v", err)
 				return
 			}
 			log.Logger.Info("socks: proxy %s <-> %s, connect elapsed time:%fs, total req num %d",
@@ -186,14 +186,23 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 			// create stream connect instance
 			rc = shadow(rc)
 
-			if _, err = rc.Write(tgt); err != nil {
-				log.Logger.Warn("socks: failed to send target address: %v", err)
+			// 一次性打包发送，约定好格式，这样既减少请求次数，也实现了验证用户的目的
+			// 用户信息验证可以是缓存验证，也可以是数据库验证
+			// 使用16个字节记录用户名、密码，用户名8个字节，密码8个字节
+
+			initBuf := make([]byte, 16+len(tgt))
+			_ = copy(initBuf[:8], []byte(srv.Config.Server.Username))
+			_ = copy(initBuf[8:16], []byte(srv.Config.Server.Password))
+			_ = copy(initBuf[16:], tgt)
+
+			if _, err = rc.Write(initBuf); err != nil {
+				_ = log.Logger.Warn("socks: failed to send target address: %v", err)
 				return
 			}
 
 			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), tgt)
 			if err = srv.relay(rc, c); err != nil {
-				log.Logger.Warn("socks: relay error from %v:%v", c.RemoteAddr(), err)
+				_ = log.Logger.Warn("socks: relay error from %v:%v", c.RemoteAddr(), err)
 			}
 
 		}()
@@ -205,7 +214,7 @@ func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 	l, err := net.Listen("tcp", srv.Addr)
 
 	if err != nil {
-		log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
+		_ = log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
 		return err
 	}
 
@@ -214,7 +223,7 @@ func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			log.Logger.Warn("socks: failed to accept: %v", err)
+			_ = log.Logger.Warn("socks: failed to accept: %v", err)
 			continue
 		}
 
@@ -228,16 +237,21 @@ func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 
 			start = time.Now()
 			// todo add user certification
+			user, pass, err := m_socks.ReadUserPass(sc)
+			if len(user) == 8 && len(pass) == 8 {
+				log.Logger.Debug("socks: server read user : %s & pass : %s", user, pass)
+			}
+
 			tgt, err := m_socks.ReadAddr(sc)
 			log.Logger.Info("socks: server read addr elapsed time :%fs", time.Since(start).Seconds())
 
 			if err != nil {
-				log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
+				_ = log.Logger.Warn("socks: failed to get target address from %v: %v", c.RemoteAddr(), err)
 				// drain c to avoid leaking server behavioral features
 				// see https://www.ndss-symposium.org/ndss-paper/detecting-probe-resistant-proxies/
 				_, err = io.Copy(ioutil.Discard, c)
 				if err != nil {
-					log.Logger.Warn("socks: discard error: %v", err)
+					_ = log.Logger.Warn("socks: discard error: %v", err)
 				}
 				return
 			}
@@ -246,7 +260,7 @@ func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 			// # todo add dns resolve module
 			rc, err := net.Dial("tcp", tgt.String())
 			if err != nil {
-				log.Logger.Warn("socks: failed to connect to target: %v", err)
+				_ = log.Logger.Warn("socks: failed to connect to target: %v", err)
 				return
 			}
 			atomic.AddInt64(&srv.stats.ReqNum, 1)
@@ -257,7 +271,7 @@ func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 			defer rc.Close()
 
 			if err = srv.relay(sc, rc); err != nil {
-				log.Logger.Warn("socks: relay error: %v", err)
+				_ = log.Logger.Warn("socks: relay error: %v", err)
 			}
 		}()
 	}

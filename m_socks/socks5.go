@@ -271,27 +271,45 @@ func SplitAddr(b []byte) Addr {
 	return b[:addrLen]
 }
 
+// read header username and password
+// username 8 byte
+// password 8 byte
+func ReadUserPass(r io.Reader) (string, string, error) {
+	b := make([]byte, 16)
+
+	_, err := io.ReadFull(r, b[:8])
+	if err != nil {
+		return "", "", err
+	}
+
+	_, err = io.ReadFull(r, b[8:])
+	if err != nil {
+		return "", "", err
+	}
+	return string(b[:8]), string(b[8:16]), nil
+}
+
 func HandShake(rw io.ReadWriter) (Addr, error) {
 	// Read RFC 1928 for request and reply structure and sizes.
 	buf := make([]byte, MaxAddrLen)
 	// read VER, NMETHODS, METHODS
 	if _, err := io.ReadFull(rw, buf[:2]); err != nil {
-		log.Logger.Warn("socks: handshake read first head error :%v", err)
+		_ = log.Logger.Warn("socks: handshake read first head error :%v", err)
 		return nil, err
 	}
 	nmethods := buf[1]
 	if _, err := io.ReadFull(rw, buf[:nmethods]); err != nil {
-		log.Logger.Warn("socks: handshake read nmethods error :%v", err)
+		_ = log.Logger.Warn("socks: handshake read nmethods error :%v", err)
 		return nil, err
 	}
 	// write VER METHOD
 	if _, err := rw.Write([]byte{5, 0}); err != nil {
-		log.Logger.Warn("socks: handshake write socks5 version error :%v", err)
+		_ = log.Logger.Warn("socks: handshake write socks5 version error :%v", err)
 		return nil, err
 	}
 	// read VER CMD RSV ATYP DST.ADDR DST.PORT
 	if _, err := io.ReadFull(rw, buf[:3]); err != nil {
-		log.Logger.Warn("socks: handshake read second head error :%v", err)
+		_ = log.Logger.Warn("socks: handshake read second head error :%v", err)
 		return nil, err
 	}
 	cmd := buf[1]
@@ -309,7 +327,7 @@ func HandShake(rw io.ReadWriter) (Addr, error) {
 		listenAddr := ParseAddr(rw.(net.Conn).LocalAddr().String())
 		_, err = rw.Write(append([]byte{5, 0, 0}, listenAddr...)) // SOCKS v5, reply succeeded
 		if err != nil {
-			log.Logger.Warn("socks: handshake cmdudp write reply error :%v", err)
+			_ = log.Logger.Warn("socks: handshake cmdudp write reply error :%v", err)
 			return nil, ErrCommandNotSupported
 		}
 		err = InfoUDPAssociate
