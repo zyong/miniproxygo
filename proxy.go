@@ -22,9 +22,10 @@ import (
 
 var (
 	help        = flag.Bool("h", false, "to show help")
+	isServer    = flag.Bool("s", false, "client or server")
 	confRoot    = flag.String("c", "./conf", "root path of configuration")
 	logPath     = flag.String("l", "./log", "dir path of log")
-	stdOut      = flag.Bool("s", false, "to show log in stdout")
+	stdOut      = flag.Bool("o", false, "to show log in stdout")
 	showVersion = flag.Bool("v", false, "to show version of proxy")
 	debugLog    = flag.Bool("d", false, "to show debug log (otherwise >= info)")
 )
@@ -35,6 +36,7 @@ func main() {
 	var err error
 	var config m_config.Conf
 	var logSwitch string
+	var confPath string
 
 	flag.Parse()
 	if *help {
@@ -70,7 +72,13 @@ func main() {
 	log.Logger.Info("proxy[version:%s] start", version)
 
 	// load server config
-	confPath := path.Join(*confRoot, "proxy.conf")
+
+	if *isServer {
+		confPath = path.Join(*confRoot, "proxy-s.conf")
+	} else {
+		confPath = path.Join(*confRoot, "proxy-c.conf")
+	}
+
 	config, err = m_config.ConfigLoad(confPath, *confRoot, m_config.SetDefaultConfig)
 
 	if err != nil {

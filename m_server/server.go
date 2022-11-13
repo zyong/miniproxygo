@@ -48,9 +48,9 @@ type Server struct {
 	Config   m_config.Conf
 	ConfRoot string
 
-	stats   Stats
-	Version string // version of bfe server
-
+	stats    Stats
+	Version  string  // version of bfe server
+	Accounts Account // file accounts
 }
 
 // NewServer create a proxy m_server
@@ -77,7 +77,7 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 	s := NewServer(cfg, confRoot, version)
 
 	// 选择一个加密算法，可以不加密？和简单密码
-	ciph, err := m_core.PickCipher(s.Config.Server.Cipher, []byte{}, "password")
+	ciph, err := m_core.PickCipher(s.Config.Base.Cipher, []byte{}, "password")
 	if err != nil {
 		return err
 	}
@@ -85,12 +85,21 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 
 	serveChan := make(chan error)
 
-	if s.Config.Server.Local {
+	if s.Config.Base.Local {
 		go func() {
 			err := s.ServeSocksLocal()
 			serveChan <- err
 		}()
 	} else {
+		// local account config
+		// file or redis
+		// select by config
+
+		s.Accounts, err = LoadAccount(cfg.Server.AccountsConf)
+		if err != nil {
+			return err
+		}
+
 		go func() {
 			err := s.ServeSocksServer()
 			serveChan <- err
@@ -102,7 +111,7 @@ func Start(cfg m_config.Conf, version string, confRoot string) error {
 }
 
 func (s *Server) ServeSocksLocal() (err error) {
-	log.Logger.Info("Start: SOCKS proxy local %s <-> %s", s.Addr, s.Config.Server.RemoteServer)
+	log.Logger.Info("Start: SOCKS proxy local %s <-> %s", s.Addr, s.Config.Client.RemoteServer)
 	shadow := s.Cipher.StreamConn
 	return s.ServeLocal(shadow, func(c net.Conn) (m_socks.Addr, error) { return m_socks.HandShake(c) })
 }
@@ -117,15 +126,15 @@ func (s *Server) ServeSocksServer() (err error) {
 // InitConfig set some parameter based on config.
 func (srv *Server) InitConfig() {
 	// set service port, according to config
-	srv.Addr = fmt.Sprintf(":%d", srv.Config.Server.Port)
+	srv.Addr = fmt.Sprintf(":%d", srv.Config.Base.Port)
 
 	// set ReadTimeout
-	if srv.Config.Server.ClientReadTimeout != 0 {
-		srv.ReadTimeout = time.Duration(srv.Config.Server.ClientReadTimeout) * time.Second
+	if srv.Config.Base.ClientReadTimeout != 0 {
+		srv.ReadTimeout = time.Duration(srv.Config.Base.ClientReadTimeout) * time.Second
 	}
 
 	// set GracefulShutdownTimeout
-	srv.GracefulShutdownTimeout = time.Duration(srv.Config.Server.GracefulShutdownTimeout) * time.Second
+	srv.GracefulShutdownTimeout = time.Duration(srv.Config.Base.GracefulShutdownTimeout) * time.Second
 }
 
 func (srv *Server) InitSocks() (err error) {
@@ -136,7 +145,7 @@ func (srv *Server) InitSocks() (err error) {
 
 // ShutdownHandler is signal handler for QUIT
 func (srv *Server) ShutdownHandler(sig os.Signal) {
-	shutdownTimeout := srv.Config.Server.GracefulShutdownTimeout
+	shutdownTimeout := srv.Config.Base.GracefulShutdownTimeout
 	log.Logger.Info("get signal %s, graceful shutdown in %ds", sig, shutdownTimeout)
 
 	// notify that server is in graceful shutdown state

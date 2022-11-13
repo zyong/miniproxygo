@@ -115,7 +115,7 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 	l, err := net.Listen("tcp", srv.Addr)
 
 	if err != nil {
-		_ = log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
+		log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Base.Port, err)
 		return err
 	}
 
@@ -139,7 +139,7 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 
 			// if in GraceShutdown state, exit accept loop after timeout
 			if srv.CheckGracefulShutdown() {
-				shutdownTimeout := srv.Config.Server.GracefulShutdownTimeout
+				shutdownTimeout := srv.Config.Base.GracefulShutdownTimeout
 				time.Sleep(time.Duration(shutdownTimeout) * time.Second)
 			}
 
@@ -170,7 +170,7 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 
 			start = time.Now()
 			// todo add concurrent pool
-			rc, err := net.Dial("tcp", srv.Config.Server.RemoteServer)
+			rc, err := net.Dial("tcp", srv.Config.Client.RemoteServer)
 			if err != nil {
 				_ = log.Logger.Warn("socks: failed to connect to RemoteServer: %v", err)
 				return
@@ -190,15 +190,21 @@ func (srv *Server) ServeLocal(shadow func(net.Conn) net.Conn, getAddr func(net.C
 			// 用户信息验证可以是缓存验证，也可以是数据库验证
 			// 使用16个字节记录用户名、密码，用户名8个字节，密码8个字节
 
-			initBuf := make([]byte, 16+len(tgt))
-			_ = copy(initBuf[:8], []byte(srv.Config.Server.Username))
-			_ = copy(initBuf[8:16], []byte(srv.Config.Server.Password))
-			_ = copy(initBuf[16:], tgt)
+			initBuf := make([]byte, 40+len(tgt))
+			n := copy(initBuf[:8], []byte(srv.Config.Client.Username))
+			if n < 8 {
+				for i := n; i < 8; i++ {
+					initBuf[i] = 0x20
+				}
+			}
+			_ = copy(initBuf[8:40], []byte(srv.Config.Client.Password))
+			_ = copy(initBuf[40:], tgt)
 
 			if _, err = rc.Write(initBuf); err != nil {
-				_ = log.Logger.Warn("socks: failed to send target address: %v", err)
+				log.Logger.Warn("socks: failed to send target address: %v", err)
 				return
 			}
+			log.Logger.Info("socks: write user %s succ", srv.Config.Client.Username)
 
 			log.Logger.Info("socks: proxy %s <-> %s", c.RemoteAddr(), tgt)
 			if err = srv.relay(rc, c); err != nil {
@@ -214,7 +220,7 @@ func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 	l, err := net.Listen("tcp", srv.Addr)
 
 	if err != nil {
-		_ = log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Server.Port, err)
+		_ = log.Logger.Warn("socks: failed to listen to %s: %v", srv.Config.Base.Port, err)
 		return err
 	}
 
@@ -238,9 +244,13 @@ func (srv *Server) ServeServer(shadow func(net.Conn) net.Conn) error {
 			start = time.Now()
 			// todo add user certification
 			user, pass, err := m_socks.ReadUserPass(sc)
-			if len(user) == 8 && len(pass) == 8 {
-				log.Logger.Debug("socks: server read user : %s & pass : %s", user, pass)
+
+			if !srv.Accounts.Valid(user, pass) {
+				log.Logger.Info("socks: server account valid failed user: %s", user)
+				return
 			}
+
+			log.Logger.Info("socks: server account valid success user: %s", user)
 
 			tgt, err := m_socks.ReadAddr(sc)
 			log.Logger.Info("socks: server read addr elapsed time :%fs", time.Since(start).Seconds())

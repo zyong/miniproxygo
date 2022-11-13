@@ -275,7 +275,7 @@ func SplitAddr(b []byte) Addr {
 // username 8 byte
 // password 8 byte
 func ReadUserPass(r io.Reader) (string, string, error) {
-	b := make([]byte, 16)
+	b := make([]byte, 40)
 
 	_, err := io.ReadFull(r, b[:8])
 	if err != nil {
@@ -286,7 +286,7 @@ func ReadUserPass(r io.Reader) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	return string(b[:8]), string(b[8:16]), nil
+	return string(b[:8]), string(b[8:40]), nil
 }
 
 func HandShake(rw io.ReadWriter) (Addr, error) {
